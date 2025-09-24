@@ -22,7 +22,6 @@ func main() {
 	}
 
 	repo, cleanup, err := setupRepository(ctx, cfg)
-
 	if err != nil {
 		log.Fatalf("failed to setup repository: %v", err)
 	}
@@ -38,7 +37,6 @@ func main() {
 	}
 
 	addr := ":" + cfg.Port
-
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      server.Handler(),
@@ -60,12 +58,4 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("server shutdown error: %v", err)
 	}
-}
-
-
-func getEnv(key, fallback string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
-	}
-	return fallback
 }

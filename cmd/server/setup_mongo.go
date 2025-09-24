@@ -21,7 +21,6 @@ func setupRepository(ctx context.Context, cfg config) (storage.TradeRepository, 
 	}
 
 	client, err := mongo.NewClient(options.Client().ApplyURI(cfg.MongoURI))
-
 	if err != nil {
 		return nil, nil, err
 	}
@@ -36,7 +35,6 @@ func setupRepository(ctx context.Context, cfg config) (storage.TradeRepository, 
 	}
 
 	repo, err := storage.NewMongoTradeRepository(client, cfg.MongoDatabase, cfg.MongoCollection)
-
 	if err != nil {
 		_ = client.Disconnect(connectCtx)
 		return nil, nil, err

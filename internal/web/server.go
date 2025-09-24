@@ -1,9 +1,11 @@
 package web
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -67,9 +69,12 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
+		Title  string
 		Trades []tradeSummary
 		Flash  string
 	}{
+		Title:  "Trade Journal",
+
 		Trades: summaries,
 		Flash:  r.URL.Query().Get("flash"),
 	}
@@ -155,11 +160,19 @@ func (s *Server) handleShowTrade(w http.ResponseWriter, r *http.Request, id stri
 
 	metrics := buildTradeMetrics(tr, r.URL.Query().Get("close_price"))
 
-	data := map[string]interface{}{
-		"Trade":      tr,
-		"Metrics":    metrics,
-		"QueryClose": metrics.QueryClose,
-		"Flash":      r.URL.Query().Get("flash"),
+	data := struct {
+		Title      string
+		Trade      *domain.Trade
+		Metrics    tradeMetrics
+		QueryClose *float64
+		Flash      string
+	}{
+		Title:      fmt.Sprintf("Trade - %s", tr.Instrument),
+		Trade:      tr,
+		Metrics:    metrics,
+		QueryClose: metrics.QueryClose,
+		Flash:      r.URL.Query().Get("flash"),
+
 	}
 	s.render(w, "trade_detail.gohtml", data)
 }
@@ -255,9 +268,16 @@ func (s *Server) handleAddFollowUp(w http.ResponseWriter, r *http.Request, id st
 }
 
 func (s *Server) render(w http.ResponseWriter, name string, data interface{}) {
+	var buf bytes.Buffer
+	if err := s.templates.ExecuteTemplate(&buf, name, data); err != nil {
+		http.Error(w, fmt.Sprintf("template render error: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := s.templates.ExecuteTemplate(w, name, data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if _, err := buf.WriteTo(w); err != nil {
+		log.Printf("template write error for %s: %v", name, err)
+
 	}
 }
 

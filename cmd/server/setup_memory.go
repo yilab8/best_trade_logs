@@ -9,7 +9,6 @@ import (
 )
 
 func setupRepository(_ context.Context, _ config) (storage.TradeRepository, func(), error) {
-
 	repo := storage.NewInMemoryTradeRepository()
 	cleanup := func() {}
 	return repo, cleanup, nil
