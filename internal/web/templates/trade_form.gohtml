@@ -1,0 +1,135 @@
+{{define "title"}}{{.Title}}{{end}}
+{{define "content"}}
+<h1>{{.Title}}</h1>
+<form method="post" action="{{.Action}}">
+    <div class="grid">
+        <div>
+            <label>Instrument</label>
+            <input type="text" name="instrument" value="{{.Trade.Instrument}}" required>
+        </div>
+        <div>
+            <label>Market</label>
+            <input type="text" name="market" value="{{.Trade.Market}}">
+        </div>
+        <div>
+            <label>Direction</label>
+            <select name="direction">
+                <option value="LONG" {{if eq .Trade.Direction "LONG"}}selected{{end}}>Long</option>
+                <option value="SHORT" {{if eq .Trade.Direction "SHORT"}}selected{{end}}>Short</option>
+            </select>
+        </div>
+        <div>
+            <label>Setup</label>
+            <input type="text" name="setup" value="{{.Trade.Setup}}">
+        </div>
+    </div>
+
+    <h3 class="section">Entry</h3>
+    <div class="grid">
+        <div>
+            <label>Date</label>
+            <input type="date" name="entry_date" value="{{if .Trade.Entry.Date.IsZero}}{{else}}{{.Trade.Entry.Date.Format "2006-01-02"}}{{end}}" required>
+        </div>
+        <div>
+            <label>Price</label>
+            <input type="number" step="0.0001" name="entry_price" value="{{printf "%.4f" .Trade.Entry.Price}}" required>
+        </div>
+        <div>
+            <label>Quantity</label>
+            <input type="number" step="0.0001" name="entry_quantity" value="{{printf "%.4f" .Trade.Entry.Quantity}}" required>
+        </div>
+        <div>
+            <label>Fees</label>
+            <input type="number" step="0.01" name="entry_fees" value="{{printf "%.2f" .Trade.Entry.Fees}}">
+        </div>
+        <div>
+            <label>Stop loss</label>
+            <input type="number" step="0.0001" name="entry_stop_loss" value="{{if .Trade.Entry.StopLoss}}{{printf "%.4f" (ptrValue .Trade.Entry.StopLoss)}}{{end}}">
+        </div>
+        <div>
+            <label>Target</label>
+            <input type="number" step="0.0001" name="entry_target" value="{{if .Trade.Entry.Target}}{{printf "%.4f" (ptrValue .Trade.Entry.Target)}}{{end}}">
+        </div>
+        <div>
+            <label>Manual risk/share</label>
+            <input type="number" step="0.0001" name="entry_risk" value="{{if .Trade.Entry.RiskPerShare}}{{printf "%.4f" (ptrValue .Trade.Entry.RiskPerShare)}}{{end}}">
+        </div>
+    </div>
+    <label>Entry notes</label>
+    <textarea name="entry_notes">{{.Trade.Entry.Notes}}</textarea>
+
+    <h3 class="section">Risk management &amp; plan</h3>
+    <label>Trade thesis</label>
+    <textarea name="thesis">{{.Trade.RiskManagement.Thesis}}</textarea>
+    <label>Plan</label>
+    <textarea name="plan">{{.Trade.RiskManagement.Plan}}</textarea>
+    <label>Checklist confirmation</label>
+    <textarea name="checklist">{{.Trade.RiskManagement.Checklist}}</textarea>
+    <label>Max risk amount</label>
+    <input type="number" step="0.01" name="max_risk" value="{{printf "%.2f" .Trade.RiskManagement.MaxRiskAmount}}">
+    <label>Position sizing logic</label>
+    <textarea name="position_sizing">{{.Trade.RiskManagement.PositionSizing}}</textarea>
+    <label>Contingency plan</label>
+    <textarea name="contingency_plan">{{.Trade.RiskManagement.ContingencyPlan}}</textarea>
+
+    <h3 class="section">Exit (optional)</h3>
+    <div class="grid">
+        <div>
+            <label>Date</label>
+            <input type="date" name="exit_date" value="{{if .Trade.Exit}}{{.Trade.Exit.Date.Format "2006-01-02"}}{{end}}">
+        </div>
+        <div>
+            <label>Price</label>
+            <input type="number" step="0.0001" name="exit_price" value="{{if .Trade.Exit}}{{printf "%.4f" .Trade.Exit.Price}}{{end}}">
+        </div>
+        <div>
+            <label>Quantity</label>
+            <input type="number" step="0.0001" name="exit_quantity" value="{{if .Trade.Exit}}{{printf "%.4f" .Trade.Exit.Quantity}}{{end}}">
+        </div>
+        <div>
+            <label>Fees</label>
+            <input type="number" step="0.01" name="exit_fees" value="{{if .Trade.Exit}}{{printf "%.2f" .Trade.Exit.Fees}}{{end}}">
+        </div>
+    </div>
+    <label>Exit reason</label>
+    <textarea name="exit_reason">{{if .Trade.Exit}}{{.Trade.Exit.Reason}}{{end}}</textarea>
+    <label>Exit notes</label>
+    <textarea name="exit_notes">{{if .Trade.Exit}}{{.Trade.Exit.Notes}}{{end}}</textarea>
+
+    <h3 class="section">Post-trade review</h3>
+    <label>Outcome summary</label>
+    <textarea name="outcome">{{.Trade.Review.OutcomeSummary}}</textarea>
+    <label>Psychology</label>
+    <textarea name="psychology">{{.Trade.Review.Psychology}}</textarea>
+    <label>Improvements</label>
+    <textarea name="improvements">{{.Trade.Review.Improvements}}</textarea>
+    <label>Tags (comma separated)</label>
+    <input type="text" name="tags" value="{{join .Trade.Review.Tags ", "}}">
+
+    <h3 class="section">Additional context</h3>
+    <label>Market context</label>
+    <textarea name="market_context">{{.Trade.MarketContext}}</textarea>
+    <label>Additional notes</label>
+    <textarea name="additional_notes">{{.Trade.AdditionalNotes}}</textarea>
+    <div class="grid">
+        <div>
+            <label>Execution score (0-10)</label>
+            <input type="number" step="0.1" name="execution_score" value="{{if .Trade.ExecutionScore}}{{printf "%.1f" (ptrValue .Trade.ExecutionScore)}}{{end}}">
+        </div>
+        <div>
+            <label>Confidence before</label>
+            <input type="number" step="0.1" name="confidence_before" value="{{if .Trade.ConfidenceBefore}}{{printf "%.1f" (ptrValue .Trade.ConfidenceBefore)}}{{end}}">
+        </div>
+        <div>
+            <label>Confidence after</label>
+            <input type="number" step="0.1" name="confidence_after" value="{{if .Trade.ConfidenceAfter}}{{printf "%.1f" (ptrValue .Trade.ConfidenceAfter)}}{{end}}">
+        </div>
+    </div>
+
+    <div class="section flex" style="justify-content:flex-end;">
+        <button class="btn" type="submit">Save trade</button>
+        <a class="btn-secondary" href="/">Cancel</a>
+    </div>
+</form>
+{{end}}
+{{template "layout" .}}
