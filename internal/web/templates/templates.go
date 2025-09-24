@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/fs"
 	"strings"
-
 	domain "best_trade_logs/internal/domain/trade"
 )
 
