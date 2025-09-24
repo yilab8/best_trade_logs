@@ -11,6 +11,33 @@
 - **未實現績效追蹤**：對於尚未出場的部位，可填寫參考收盤價來估算當前績效。
 - **瀏覽器介面**：提供響應式 HTML 介面，用於瀏覽清單、編輯紀錄與查看交易細節。
 
+## 系統需求
+
+- [Go](https://go.dev/dl/) 1.21 以上版本（建議 1.22+）。
+- （選用）MongoDB 6.x 以上版本，若需要長期儲存資料。
+
+## 快速開始
+
+1. 下載並安裝 Go，確認 `go version` 顯示的版本 ≥ 1.21。
+2. 取得專案程式碼並切換到專案根目錄：
+
+   ```bash
+   git clone <repo-url>
+   cd best_trade_logs
+   ```
+
+3. 執行伺服器並載入示範資料：
+
+   ```bash
+   go run ./cmd/server --seed
+   ```
+
+   `--seed` 只會在資料庫為空時建立兩筆示範交易，方便直接瀏覽 UI。
+
+4. 開啟瀏覽器並前往 <http://localhost:8080> 查看交易日誌。
+
+5. 如需停止伺服器，可在終端機按下 `Ctrl + C`。
+
 ## 執行方式
 
 ### 快速體驗（記憶體儲存）
@@ -22,6 +49,25 @@ go run ./cmd/server
 ```
 
 開啟瀏覽器並造訪 http://localhost:8080 進入交易日誌。
+
+若希望自動帶入示範資料，可加入 `--seed` 參數或設定環境變數 `SEED_SAMPLE_DATA=true`：
+
+```bash
+go run ./cmd/server --seed
+# 或
+SEED_SAMPLE_DATA=true go run ./cmd/server
+```
+
+### 常用指令（Makefile）
+
+專案提供簡易的 Makefile，協助快速執行常見工作：
+
+```bash
+make run        # go run ./cmd/server
+make run-seed   # go run ./cmd/server --seed
+make test       # go test ./...
+```
+
 
 ### 使用 MongoDB
 
@@ -40,15 +86,20 @@ export MONGO_COLLECTION="trades"
 
 ```bash
 go build -tags mongodb ./cmd/server
-go run -tags mongodb ./cmd/server
+go run -tags mongodb ./cmd/server --mongo-uri mongodb://localhost:27017 --mongo-db best_trade_logs
 ```
 
 啟用 MongoDB 後，伺服器會在啟動時自動連線，並將交易資料存入指定的集合中。
 
 ### 設定參數
 
-- `PORT`：HTTP 埠號（預設為 `8080`）。
-- `MONGO_URI`、`MONGO_DB`、`MONGO_COLLECTION`：在使用 `mongodb` build tag 時必填。
+- `--port` / `PORT`：HTTP 埠號（預設 `8080`）。
+- `--seed` / `SEED_SAMPLE_DATA`：啟動時若資料庫為空是否載入示範交易（預設 `false`）。
+- `--mongo-uri` / `MONGO_URI`：MongoDB 連線字串（使用 `mongodb` build tag 時必填）。
+- `--mongo-db` / `MONGO_DB`：MongoDB 資料庫名稱（必填）。
+- `--mongo-collection` / `MONGO_COLLECTION`：MongoDB 集合名稱（預設 `trades`）。
+
+指令旗標會覆寫同名環境變數；若習慣使用 `.env` 檔，可自行 `source` 或使用像是 [direnv](https://direnv.net/) 的工具載入設定。
 
 ## 測試
 

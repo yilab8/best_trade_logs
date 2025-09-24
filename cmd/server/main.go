@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -17,19 +16,29 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	repo, cleanup, err := setupRepository(ctx)
+	cfg, err := loadConfig()
+	if err != nil {
+		log.Fatalf("failed to load configuration: %v", err)
+	}
+
+	repo, cleanup, err := setupRepository(ctx, cfg)
+
 	if err != nil {
 		log.Fatalf("failed to setup repository: %v", err)
 	}
 	defer cleanup()
 
 	svc := tradesvc.NewService(repo)
+	if err := maybeSeed(ctx, svc, cfg.SeedSampleData); err != nil {
+		log.Printf("sample data seeding failed: %v", err)
+	}
 	server, err := web.NewServer(svc)
 	if err != nil {
 		log.Fatalf("failed to create server: %v", err)
 	}
 
-	addr := ":" + getEnv("PORT", "8080")
+	addr := ":" + cfg.Port
+
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      server.Handler(),
@@ -52,6 +61,7 @@ func main() {
 		log.Printf("server shutdown error: %v", err)
 	}
 }
+
 
 func getEnv(key, fallback string) string {
 	if val := os.Getenv(key); val != "" {
