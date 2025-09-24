@@ -68,6 +68,7 @@ make run-seed   # go run ./cmd/server --seed
 make test       # go test ./...
 ```
 
+
 ### 使用 MongoDB
 
 若需要完整持久化，可在編譯時加入 `mongodb` build tag。請先準備可用的 MongoDB 服務，並安裝官方 Go Driver（在可連線的環境執行 `go get go.mongodb.org/mongo-driver/mongo`）。
