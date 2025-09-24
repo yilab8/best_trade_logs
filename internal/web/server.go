@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"strconv"
@@ -20,7 +19,7 @@ import (
 // Server wires the HTTP layer with the trade service.
 type Server struct {
 	svc       *tradesvc.Service
-	templates *template.Template
+	templates *templates.Engine
 }
 
 // NewServer builds a Server with embedded templates parsed.
@@ -74,7 +73,6 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		Flash  string
 	}{
 		Title:  "Trade Journal",
-
 		Trades: summaries,
 		Flash:  r.URL.Query().Get("flash"),
 	}
@@ -172,7 +170,6 @@ func (s *Server) handleShowTrade(w http.ResponseWriter, r *http.Request, id stri
 		Metrics:    metrics,
 		QueryClose: metrics.QueryClose,
 		Flash:      r.URL.Query().Get("flash"),
-
 	}
 	s.render(w, "trade_detail.gohtml", data)
 }
@@ -277,7 +274,6 @@ func (s *Server) render(w http.ResponseWriter, name string, data interface{}) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if _, err := buf.WriteTo(w); err != nil {
 		log.Printf("template write error for %s: %v", name, err)
-
 	}
 }
 
