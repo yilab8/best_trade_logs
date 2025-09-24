@@ -1,0 +1,45 @@
+{{define "title"}}Trade Journal{{end}}
+{{define "content"}}
+<div class="flex" style="justify-content: space-between;">
+    <h1>Trade Journal</h1>
+    <a class="btn" href="/trades/new">Record new trade</a>
+</div>
+
+{{if .Flash}}
+<div class="alert">{{.Flash}}</div>
+{{end}}
+
+<table>
+    <thead>
+        <tr>
+            <th>Instrument</th>
+            <th>Direction</th>
+            <th>Entry</th>
+            <th>Exit</th>
+            <th>P&amp;L</th>
+            <th>R Multiple</th>
+            <th>7D After</th>
+            <th>30D After</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {{range .Trades}}
+        <tr>
+            <td>{{.Instrument}}</td>
+            <td>{{.Direction}}</td>
+            <td>{{.Entry.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Entry.Price}}</td>
+            <td>{{if .Exit}}{{.Exit.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Exit.Price}}{{else}}Open{{end}}</td>
+            <td>{{printf "%.2f" .NetResult}} ({{printf "%.2f" .ResultPercent}}%)</td>
+            <td>{{printf "%.2f" .RMultiple}}</td>
+            <td>{{if .FollowUp7}}{{printf "%.2f" .FollowUp7}}%{{else}}-{{end}}</td>
+            <td>{{if .FollowUp30}}{{printf "%.2f" .FollowUp30}}%{{else}}-{{end}}</td>
+            <td><a class="btn-secondary" href="/trades/{{.ID}}">View</a></td>
+        </tr>
+    {{else}}
+        <tr><td colspan="9">No trades logged yet.</td></tr>
+    {{end}}
+    </tbody>
+</table>
+{{end}}
+{{template "layout" .}}
