@@ -1,0 +1,152 @@
+{{define "title"}}Trade - {{.Trade.Instrument}}{{end}}
+{{define "content"}}
+<div class="flex" style="justify-content: space-between; align-items:center;">
+    <h1>{{.Trade.Instrument}} ({{.Trade.Direction}})</h1>
+    <div class="actions">
+        <a class="btn" href="/trades/{{.Trade.ID}}/edit">Edit</a>
+        <form method="post" action="/trades/{{.Trade.ID}}/delete" onsubmit="return confirm('Delete this trade?');">
+            <button class="btn-secondary" type="submit">Delete</button>
+        </form>
+    </div>
+</div>
+{{if .Flash}}
+<div class="alert">{{.Flash}}</div>
+{{end}}
+<p><strong>Setup:</strong> {{.Trade.Setup}} | <strong>Market:</strong> {{.Trade.Market}}</p>
+<p><strong>Created:</strong> {{.Trade.CreatedAt.Format "2006-01-02 15:04"}}</p>
+
+<div class="metrics">
+    <div class="metric-card">
+        <h4>Net P&amp;L</h4>
+        <p>{{printf "%.2f" .Metrics.Net}} ({{printf "%.2f" .Metrics.NetPercent}}%)</p>
+    </div>
+    <div class="metric-card">
+        <h4>R Multiple</h4>
+        <p>{{printf "%.2f" .Metrics.RMultiple}}</p>
+    </div>
+    <div class="metric-card">
+        <h4>Total Risk</h4>
+        <p>{{printf "%.2f" .Metrics.TotalRisk}}</p>
+    </div>
+    <div class="metric-card">
+        <h4>Exit vs 7 days</h4>
+        <p>{{if .Metrics.FollowUp7}}{{printf "%.2f" .Metrics.FollowUp7}}%{{else}}N/A{{end}}</p>
+    </div>
+    <div class="metric-card">
+        <h4>Exit vs 30 days</h4>
+        <p>{{if .Metrics.FollowUp30}}{{printf "%.2f" .Metrics.FollowUp30}}%{{else}}N/A{{end}}</p>
+    </div>
+    <div class="metric-card">
+        <h4>Target R</h4>
+        <p>{{printf "%.2f" .Metrics.TargetR}}</p>
+    </div>
+</div>
+
+<div class="section">
+    <h3>Entry</h3>
+    <p>{{.Trade.Entry.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Trade.Entry.Price}} | Qty: {{printf "%.2f" .Trade.Entry.Quantity}} | Fees: {{printf "%.2f" .Trade.Entry.Fees}}</p>
+    {{if .Trade.Entry.StopLoss}}<p>Stop loss: {{printf "%.2f" (ptrValue .Trade.Entry.StopLoss)}}</p>{{end}}
+    {{if .Trade.Entry.Target}}<p>Target: {{printf "%.2f" (ptrValue .Trade.Entry.Target)}} ({{printf "%.2f" .Metrics.TargetR}}R)</p>{{end}}
+    {{if .Trade.Entry.Notes}}<p>{{.Trade.Entry.Notes}}</p>{{end}}
+</div>
+
+<div class="section">
+    <h3>Exit</h3>
+    {{if .Trade.Exit}}
+        <p>{{.Trade.Exit.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Trade.Exit.Price}} | Qty: {{printf "%.2f" .Trade.Exit.Quantity}} | Fees: {{printf "%.2f" .Trade.Exit.Fees}}</p>
+        {{if .Trade.Exit.Reason}}<p><strong>Reason:</strong> {{.Trade.Exit.Reason}}</p>{{end}}
+        {{if .Trade.Exit.Notes}}<p>{{.Trade.Exit.Notes}}</p>{{end}}
+    {{else}}
+        <p>Position still open. Unrealized P&amp;L at custom price:</p>
+        <form class="flex" method="get">
+            <label>Reference price</label>
+            <input type="number" step="0.0001" name="close_price" value="{{if .QueryClose}}{{printf "%.4f" .QueryClose}}{{end}}">
+            <button class="btn" type="submit">Update</button>
+        </form>
+        {{if .QueryClose}}
+        <div class="metric-card" style="margin-top:1rem;">
+            <h4>Unrealized</h4>
+            <p>{{printf "%.2f" .Metrics.Unrealized}} ({{printf "%.2f" .Metrics.UnrealizedPct}}%)</p>
+        </div>
+        {{end}}
+    {{end}}
+</div>
+
+<div class="section">
+    <h3>Risk management</h3>
+    {{if .Trade.RiskManagement.Thesis}}<p><strong>Thesis:</strong> {{.Trade.RiskManagement.Thesis}}</p>{{end}}
+    {{if .Trade.RiskManagement.Plan}}<p><strong>Plan:</strong> {{.Trade.RiskManagement.Plan}}</p>{{end}}
+    {{if .Trade.RiskManagement.Checklist}}<p><strong>Checklist:</strong> {{.Trade.RiskManagement.Checklist}}</p>{{end}}
+    {{if gt .Trade.RiskManagement.MaxRiskAmount 0}}<p><strong>Max risk:</strong> {{printf "%.2f" .Trade.RiskManagement.MaxRiskAmount}}</p>{{end}}
+    {{if .Trade.RiskManagement.PositionSizing}}<p><strong>Position sizing:</strong> {{.Trade.RiskManagement.PositionSizing}}</p>{{end}}
+    {{if .Trade.RiskManagement.ContingencyPlan}}<p><strong>Contingency:</strong> {{.Trade.RiskManagement.ContingencyPlan}}</p>{{end}}
+</div>
+
+<div class="section">
+    <h3>Review</h3>
+    {{if .Trade.Review.OutcomeSummary}}<p><strong>Outcome:</strong> {{.Trade.Review.OutcomeSummary}}</p>{{end}}
+    {{if .Trade.Review.Psychology}}<p><strong>Psychology:</strong> {{.Trade.Review.Psychology}}</p>{{end}}
+    {{if .Trade.Review.Improvements}}<p><strong>Improvements:</strong> {{.Trade.Review.Improvements}}</p>{{end}}
+    {{if .Trade.Review.Tags}}
+    <div class="flex">
+        {{range .Trade.Review.Tags}}<span class="tag">{{.}}</span>{{end}}
+    </div>
+    {{end}}
+</div>
+
+<div class="section">
+    <h3>Follow-ups</h3>
+    <form method="post" action="/trades/{{.Trade.ID}}/followups" class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+        <div>
+            <label>Days after exit</label>
+            <input type="number" name="days_after" min="1" required>
+        </div>
+        <div>
+            <label>Price</label>
+            <input type="number" step="0.0001" name="price" required>
+        </div>
+        <div>
+            <label>Notes</label>
+            <input type="text" name="notes">
+        </div>
+        <div style="align-self:end;">
+            <button class="btn" type="submit">Add follow-up</button>
+        </div>
+    </form>
+    <table>
+        <thead>
+            <tr>
+                <th>Days after</th>
+                <th>Price</th>
+                <th>Change vs exit</th>
+                <th>Logged</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+        {{range .Trade.FollowUps}}
+            <tr>
+                <td>{{.DaysAfter}}</td>
+                <td>{{printf "%.2f" .Price}}</td>
+                <td>{{if $.Trade.Exit}}{{printf "%.2f" (followUpChange $.Trade .)}}%{{else}}N/A{{end}}</td>
+                <td>{{.LoggedAt.Format "2006-01-02 15:04"}}</td>
+                <td>{{.Notes}}</td>
+            </tr>
+        {{else}}
+            <tr><td colspan="5">No follow-ups recorded.</td></tr>
+        {{end}}
+        </tbody>
+    </table>
+</div>
+
+<div class="section">
+    {{if .Trade.MarketContext}}<p><strong>Market context:</strong> {{.Trade.MarketContext}}</p>{{end}}
+    {{if .Trade.AdditionalNotes}}<p><strong>Notes:</strong> {{.Trade.AdditionalNotes}}</p>{{end}}
+    <div class="flex">
+        {{if .Trade.ExecutionScore}}<span class="badge">Execution: {{printf "%.1f" (ptrValue .Trade.ExecutionScore)}}</span>{{end}}
+        {{if .Trade.ConfidenceBefore}}<span class="badge">Confidence before: {{printf "%.1f" (ptrValue .Trade.ConfidenceBefore)}}</span>{{end}}
+        {{if .Trade.ConfidenceAfter}}<span class="badge">Confidence after: {{printf "%.1f" (ptrValue .Trade.ConfidenceAfter)}}</span>{{end}}
+    </div>
+</div>
+{{end}}
+{{template "layout" .}}
