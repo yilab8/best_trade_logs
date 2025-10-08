@@ -1,7 +1,11 @@
 {{define "title"}}Trade Journal{{end}}
 {{define "content"}}
-<div class="flex" style="justify-content: space-between;">
-    <h1>Trade Journal</h1>
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Journal overview</p>
+        <h1>Trade Journal</h1>
+        <p class="subtitle">Refine your playbook with a clear snapshot of recent performance, risk usage, and the lessons you’ve captured.</p>
+    </div>
     <a class="btn" href="/trades/new">Record new trade</a>
 </div>
 
@@ -9,37 +13,152 @@
 <div class="alert">{{.Flash}}</div>
 {{end}}
 
-<table>
+{{if .TotalTrades}}
+<div class="stat-grid">
+    <div class="stat-card">
+        <span class="stat-label">Trades in view</span>
+        <span class="stat-value">{{.VisibleTrades}}</span>
+        <span class="stat-meta">{{.Metrics.Open}} open &bull; {{.Metrics.Closed}} closed{{if lt .VisibleTrades .TotalTrades}} &middot; of {{.TotalTrades}} total{{end}}</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Win rate</span>
+        <span class="stat-value">{{if .Metrics.Closed}}{{printf "%.1f" .Metrics.WinRate}}%{{else}}—{{end}}</span>
+        <span class="stat-meta">Closed trades with positive net</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Avg R multiple</span>
+        <span class="stat-value">{{printf "%.2f" .Metrics.AvgR}}</span>
+        <span class="stat-meta">Across closed positions</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Avg return %</span>
+        <span class="stat-value">{{if .Metrics.Closed}}{{printf "%.2f" .Metrics.AvgReturnPct}}%{{else}}—{{end}}</span>
+        <span class="stat-meta">Net result vs. exposure</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Avg days in trade</span>
+        <span class="stat-value">{{printf "%.1f" .Metrics.AvgHoldDays}}</span>
+        <span class="stat-meta">From entry to exit</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Total net P&amp;L</span>
+        <span class="stat-value {{if gt .Metrics.TotalNet 0}}text-positive{{else if lt .Metrics.TotalNet 0}}text-negative{{end}}">{{printf "%.2f" .Metrics.TotalNet}}</span>
+        <span class="stat-meta">Open risk: {{printf "%.2f" .Metrics.OpenRisk}}</span>
+    </div>
+</div>
+{{end}}
+
+<form method="get" class="toolbar">
+    <div class="form-field">
+        <label for="filter-instrument">Search</label>
+        <input id="filter-instrument" type="text" name="instrument" value="{{.Filters.Instrument}}" placeholder="Instrument, market, or setup">
+    </div>
+    <div class="form-field">
+        <label for="filter-direction">Direction</label>
+        <select id="filter-direction" name="direction">
+            <option value="">Any direction</option>
+            <option value="LONG" {{if eq .Filters.Direction "LONG"}}selected{{end}}>Long</option>
+            <option value="SHORT" {{if eq .Filters.Direction "SHORT"}}selected{{end}}>Short</option>
+        </select>
+    </div>
+    <div class="form-field">
+        <label for="filter-status">Status</label>
+        <select id="filter-status" name="status">
+            <option value="">All trades</option>
+            <option value="open" {{if eq .Filters.Status "open"}}selected{{end}}>Open positions</option>
+            <option value="closed" {{if eq .Filters.Status "closed"}}selected{{end}}>Closed positions</option>
+            <option value="wins" {{if eq .Filters.Status "wins"}}selected{{end}}>Winning trades</option>
+            <option value="losses" {{if eq .Filters.Status "losses"}}selected{{end}}>Losing trades</option>
+        </select>
+    </div>
+    <div class="form-field">
+        <label for="filter-tag">Tag</label>
+        <select id="filter-tag" name="tag">
+            <option value="">All tags</option>
+            {{range .Tags}}
+            <option value="{{.}}" {{if eq $.Filters.Tag .}}selected{{end}}>{{formatTag .}}</option>
+            {{end}}
+        </select>
+    </div>
+    <div class="toolbar-actions">
+        <button class="btn" type="submit">Apply filters</button>
+        {{if .Filters.Active}}
+        <a class="btn btn-tertiary" href="/">Reset</a>
+        {{end}}
+    </div>
+</form>
+
+{{if .Trades}}
+<table class="data-table">
     <thead>
         <tr>
-            <th>Instrument</th>
-            <th>Direction</th>
-            <th>Entry</th>
-            <th>Exit</th>
-            <th>P&amp;L</th>
+            <th>Trade</th>
+            <th>Status</th>
+            <th>Timeline</th>
+            <th>Result</th>
             <th>R Multiple</th>
-            <th>7D After</th>
-            <th>30D After</th>
+            <th>Follow-ups</th>
             <th></th>
         </tr>
     </thead>
     <tbody>
     {{range .Trades}}
         <tr>
-            <td>{{.Instrument}}</td>
-            <td>{{.Direction}}</td>
-            <td>{{.Entry.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Entry.Price}}</td>
-            <td>{{if .Exit}}{{.Exit.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Exit.Price}}{{else}}Open{{end}}</td>
-            <td>{{printf "%.2f" .NetResult}} ({{printf "%.2f" .ResultPercent}}%)</td>
-            <td>{{printf "%.2f" .RMultiple}}</td>
-            <td>{{if .FollowUp7}}{{printf "%.2f" .FollowUp7}}%{{else}}-{{end}}</td>
-            <td>{{if .FollowUp30}}{{printf "%.2f" .FollowUp30}}%{{else}}-{{end}}</td>
-            <td><a class="btn-secondary" href="/trades/{{.ID}}">View</a></td>
+            <td>
+                <div class="cell-heading">{{.Instrument}}</div>
+                {{if .Trade.Setup}}<span class="cell-meta">Setup &middot; {{.Trade.Setup}}</span>{{end}}
+                {{if .Trade.Market}}<span class="cell-meta">Market &middot; {{.Trade.Market}}</span>{{end}}
+                {{if .Trade.Review.Tags}}
+                <div class="tag-row">
+                    {{range .Trade.Review.Tags}}<span class="tag">{{formatTag .}}</span>{{end}}
+                </div>
+                {{end}}
+            </td>
+            <td>
+                <span class="status-pill {{if .IsOpen}}status-open{{else}}status-closed{{end}}">{{.Status}}</span>
+                {{if .HasHold}}<span class="cell-meta">{{printf "%.1f" .HoldDays}} days in market</span>{{end}}
+            </td>
+            <td>
+                <span class="cell-meta"><strong>Entry:</strong> {{.Trade.Entry.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Trade.Entry.Price}} &middot; Qty {{printf "%.2f" .Trade.Entry.Quantity}}</span>
+                {{if .Trade.HasExited}}
+                <span class="cell-meta"><strong>Exit:</strong> {{.Trade.Exit.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Trade.Exit.Price}}</span>
+                {{else}}
+                <span class="cell-meta">Awaiting exit &middot; Fees {{printf "%.2f" .Trade.Entry.Fees}}</span>
+                {{end}}
+            </td>
+            <td>
+                {{if .Trade.HasExited}}
+                <div class="cell-heading {{if gt .NetResult 0}}text-positive{{else if lt .NetResult 0}}text-negative{{else}}text-muted{{end}}">{{printf "%.2f" .NetResult}}</div>
+                <span class="cell-meta">{{printf "%.2f" .ResultPercent}}%</span>
+                {{else}}
+                <span class="cell-meta">Realized fees {{printf "%.2f" .Trade.Entry.Fees}}</span>
+                {{end}}
+            </td>
+            <td>
+                <div class="cell-heading">{{printf "%.2f" .RMultiple}}</div>
+                {{if .Trade.Entry.Target}}<span class="cell-meta">Target {{printf "%.2f" (ptrValue .Trade.Entry.Target)}} | {{printf "%.2f" .RMultiple}}R</span>{{end}}
+            </td>
+            <td>
+                <span class="cell-meta">7d: {{if .FollowUp7}}{{printf "%.2f" (ptrValue .FollowUp7)}}%{{else}}—{{end}}</span>
+                <span class="cell-meta">30d: {{if .FollowUp30}}{{printf "%.2f" (ptrValue .FollowUp30)}}%{{else}}—{{end}}</span>
+            </td>
+            <td class="table-actions">
+                <a class="btn btn-ghost" href="/trades/{{.ID}}">View</a>
+            </td>
         </tr>
-    {{else}}
-        <tr><td colspan="9">No trades logged yet.</td></tr>
     {{end}}
     </tbody>
 </table>
+{{else}}
+<div class="empty-state">
+    <h2>No trades to show yet</h2>
+    {{if .Filters.Active}}
+        <p>Try broadening your filters or <a href="/">resetting the view</a> to see the full journal.</p>
+    {{else}}
+        <p>Kick things off by logging your first trade to unlock analytics and review workflows.</p>
+        <p><a class="btn btn-ghost" href="/trades/new">Record your first trade</a></p>
+    {{end}}
+</div>
+{{end}}
 {{end}}
 {{template "layout" .}}

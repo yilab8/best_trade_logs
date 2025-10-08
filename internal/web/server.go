@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	domain "best_trade_logs/internal/domain/trade"
 	tradesvc "best_trade_logs/internal/service/trade"
@@ -53,9 +55,20 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summaries := make([]tradeSummary, 0, len(trades))
-	for _, tr := range trades {
-		summary := tradeSummary{Trade: tr, NetResult: tr.NetResult(), ResultPercent: tr.ResultPercent(), RMultiple: tr.RMultiple()}
+	filters := parseIndexFilters(r)
+	filtered := applyIndexFilters(trades, filters)
+
+	summaries := make([]tradeSummary, 0, len(filtered))
+	now := time.Now().UTC()
+	for _, tr := range filtered {
+		summary := tradeSummary{
+			Trade:         tr,
+			NetResult:     tr.NetResult(),
+			ResultPercent: tr.ResultPercent(),
+			RMultiple:     tr.RMultiple(),
+			Status:        tradeStatus(tr),
+			IsOpen:        !tr.HasExited(),
+		}
 		if v, ok := tr.FollowUpChangePercent(7); ok {
 			val := v
 			summary.FollowUp7 = &val
@@ -64,17 +77,33 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 			val := v
 			summary.FollowUp30 = &val
 		}
+		if hold, ok := holdDays(tr, now); ok {
+			summary.HoldDays = hold
+			summary.HasHold = true
+		}
 		summaries = append(summaries, summary)
 	}
 
+	metrics := summarizeTrades(filtered, now)
+	tags := collectTags(trades)
 	data := struct {
-		Title  string
-		Trades []tradeSummary
-		Flash  string
+		Title         string
+		Trades        []tradeSummary
+		Flash         string
+		Metrics       dashboardMetrics
+		Filters       indexFilters
+		TotalTrades   int
+		VisibleTrades int
+		Tags          []string
 	}{
-		Title:  "Trade Journal",
-		Trades: summaries,
-		Flash:  r.URL.Query().Get("flash"),
+		Title:         "Trade Journal",
+		Trades:        summaries,
+		Flash:         r.URL.Query().Get("flash"),
+		Metrics:       metrics,
+		Filters:       filters,
+		TotalTrades:   len(trades),
+		VisibleTrades: len(filtered),
+		Tags:          tags,
 	}
 
 	s.render(w, "index.gohtml", data)
@@ -284,6 +313,10 @@ type tradeSummary struct {
 	RMultiple     float64
 	FollowUp7     *float64
 	FollowUp30    *float64
+	Status        string
+	HoldDays      float64
+	HasHold       bool
+	IsOpen        bool
 }
 
 type tradeMetrics struct {
@@ -323,6 +356,217 @@ func buildTradeMetrics(tr *domain.Trade, closePrice string) tradeMetrics {
 		}
 	}
 	return metrics
+}
+
+type indexFilters struct {
+	Instrument string
+	Direction  string
+	Status     string
+	Tag        string
+}
+
+func (f indexFilters) Active() bool {
+	return f.Instrument != "" || f.Direction != "" || f.Status != "" || f.Tag != ""
+}
+
+type dashboardMetrics struct {
+	Total        int
+	Closed       int
+	Open         int
+	WinRate      float64
+	AvgR         float64
+	AvgHoldDays  float64
+	AvgReturnPct float64
+	TotalNet     float64
+	OpenRisk     float64
+}
+
+func parseIndexFilters(r *http.Request) indexFilters {
+	q := r.URL.Query()
+	filters := indexFilters{
+		Instrument: strings.TrimSpace(q.Get("instrument")),
+		Direction:  strings.ToUpper(strings.TrimSpace(q.Get("direction"))),
+		Status:     strings.ToLower(strings.TrimSpace(q.Get("status"))),
+		Tag:        strings.ToLower(strings.TrimSpace(q.Get("tag"))),
+	}
+	if filters.Direction != string(domain.DirectionLong) && filters.Direction != string(domain.DirectionShort) {
+		filters.Direction = ""
+	}
+	switch filters.Status {
+	case "open", "closed", "wins", "losses":
+	default:
+		filters.Status = ""
+	}
+	if filters.Tag != "" {
+		filters.Tag = normalizeTag(filters.Tag)
+	}
+	return filters
+}
+
+func applyIndexFilters(trades []*domain.Trade, filters indexFilters) []*domain.Trade {
+	if !filters.Active() {
+		return trades
+	}
+
+	filtered := make([]*domain.Trade, 0, len(trades))
+	needle := strings.ToLower(filters.Instrument)
+	for _, tr := range trades {
+		if needle != "" {
+			instrument := strings.ToLower(tr.Instrument)
+			market := strings.ToLower(tr.Market)
+			setup := strings.ToLower(tr.Setup)
+			if !strings.Contains(instrument, needle) && !strings.Contains(market, needle) && !strings.Contains(setup, needle) {
+				continue
+			}
+		}
+		if filters.Direction != "" && string(tr.Direction) != filters.Direction {
+			continue
+		}
+		switch filters.Status {
+		case "open":
+			if tr.HasExited() {
+				continue
+			}
+		case "closed":
+			if !tr.HasExited() {
+				continue
+			}
+		case "wins":
+			if !tr.HasExited() || tr.NetResult() <= 0 {
+				continue
+			}
+		case "losses":
+			if !tr.HasExited() || tr.NetResult() >= 0 {
+				continue
+			}
+		}
+		if filters.Tag != "" {
+			match := false
+			for _, tag := range tr.Review.Tags {
+				if normalizeTag(tag) == filters.Tag {
+					match = true
+					break
+				}
+			}
+			if !match {
+				continue
+			}
+		}
+		filtered = append(filtered, tr)
+	}
+	return filtered
+}
+
+func summarizeTrades(trades []*domain.Trade, now time.Time) dashboardMetrics {
+	metrics := dashboardMetrics{}
+	metrics.Total = len(trades)
+	if len(trades) == 0 {
+		return metrics
+	}
+
+	var winCount int
+	var rTotal float64
+	var rSamples int
+	var holdTotal float64
+	var holdSamples int
+	var returnTotal float64
+	var returnSamples int
+
+	for _, tr := range trades {
+		net := tr.NetResult()
+		metrics.TotalNet += net
+		if tr.HasExited() {
+			metrics.Closed++
+			if net > 0 {
+				winCount++
+			}
+			if tr.TotalRiskAmount() > 0 {
+				rTotal += tr.RMultiple()
+				rSamples++
+			}
+			if hold, ok := holdDays(tr, now); ok {
+				holdTotal += hold
+				holdSamples++
+			}
+			returnTotal += tr.ResultPercent()
+			returnSamples++
+		} else {
+			metrics.Open++
+			metrics.OpenRisk += tr.TotalRiskAmount()
+		}
+	}
+
+	if metrics.Closed > 0 {
+		metrics.WinRate = (float64(winCount) / float64(metrics.Closed)) * 100
+	}
+	if rSamples > 0 {
+		metrics.AvgR = rTotal / float64(rSamples)
+	}
+	if holdSamples > 0 {
+		metrics.AvgHoldDays = holdTotal / float64(holdSamples)
+	}
+	if returnSamples > 0 {
+		metrics.AvgReturnPct = returnTotal / float64(returnSamples)
+	}
+	return metrics
+}
+
+func collectTags(trades []*domain.Trade) []string {
+	seen := make(map[string]struct{})
+	for _, tr := range trades {
+		for _, tag := range tr.Review.Tags {
+			normalised := normalizeTag(tag)
+			if normalised == "" {
+				continue
+			}
+			seen[normalised] = struct{}{}
+		}
+	}
+	if len(seen) == 0 {
+		return nil
+	}
+	values := make([]string, 0, len(seen))
+	for tag := range seen {
+		values = append(values, tag)
+	}
+	sort.Strings(values)
+	return values
+}
+
+func tradeStatus(tr *domain.Trade) string {
+	if tr.HasExited() {
+		return "Closed"
+	}
+	return "Open"
+}
+
+func holdDays(tr *domain.Trade, now time.Time) (float64, bool) {
+	if tr.Entry.Date.IsZero() {
+		return 0, false
+	}
+	end := now
+	if tr.HasExited() {
+		if tr.Exit == nil || tr.Exit.Date.IsZero() {
+			return 0, false
+		}
+		end = tr.Exit.Date
+	}
+	if end.Before(tr.Entry.Date) {
+		return 0, false
+	}
+	duration := end.Sub(tr.Entry.Date).Hours() / 24
+	return duration, true
+}
+
+func normalizeTag(tag string) string {
+	trimmed := strings.TrimSpace(strings.ToLower(tag))
+	if trimmed == "" {
+		return ""
+	}
+	if !utf8.ValidString(trimmed) {
+		return ""
+	}
+	return trimmed
 }
 
 func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
