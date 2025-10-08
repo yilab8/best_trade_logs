@@ -1,12 +1,12 @@
-{{define "title"}}Trade Journal{{end}}
+{{define "title"}}交易日誌{{end}}
 {{define "content"}}
 <div class="page-header">
     <div>
-        <p class="eyebrow">Journal overview</p>
-        <h1>Trade Journal</h1>
-        <p class="subtitle">Refine your playbook with a clear snapshot of recent performance, risk usage, and the lessons you’ve captured.</p>
+        <p class="eyebrow">日誌總覽</p>
+        <h1>交易日誌</h1>
+        <p class="subtitle">透過近期績效、風險使用與回顧紀錄的即時總覽，持續優化你的交易流程。</p>
     </div>
-    <a class="btn" href="/trades/new">Record new trade</a>
+    <a class="btn" href="/trades/new">新增交易</a>
 </div>
 
 {{if .Flash}}
@@ -16,74 +16,74 @@
 {{if .TotalTrades}}
 <div class="stat-grid">
     <div class="stat-card">
-        <span class="stat-label">Trades in view</span>
+        <span class="stat-label">符合條件的交易</span>
         <span class="stat-value">{{.VisibleTrades}}</span>
-        <span class="stat-meta">{{.Metrics.Open}} open &bull; {{.Metrics.Closed}} closed{{if lt .VisibleTrades .TotalTrades}} &middot; of {{.TotalTrades}} total{{end}}</span>
+        <span class="stat-meta">{{.Metrics.Open}} 筆未平倉 &bull; {{.Metrics.Closed}} 筆已平倉{{if lt .VisibleTrades .TotalTrades}} &middot; 共 {{.TotalTrades}} 筆紀錄{{end}}</span>
     </div>
     <div class="stat-card">
-        <span class="stat-label">Win rate</span>
+        <span class="stat-label">勝率</span>
         <span class="stat-value">{{if .Metrics.Closed}}{{printf "%.1f" .Metrics.WinRate}}%{{else}}—{{end}}</span>
-        <span class="stat-meta">Closed trades with positive net</span>
+        <span class="stat-meta">已平倉且為正報酬的比例</span>
     </div>
     <div class="stat-card">
-        <span class="stat-label">Avg R multiple</span>
+        <span class="stat-label">平均 R 倍數</span>
         <span class="stat-value">{{printf "%.2f" .Metrics.AvgR}}</span>
-        <span class="stat-meta">Across closed positions</span>
+        <span class="stat-meta">僅計入已平倉部位</span>
     </div>
     <div class="stat-card">
-        <span class="stat-label">Avg return %</span>
+        <span class="stat-label">平均報酬率</span>
         <span class="stat-value">{{if .Metrics.Closed}}{{printf "%.2f" .Metrics.AvgReturnPct}}%{{else}}—{{end}}</span>
-        <span class="stat-meta">Net result vs. exposure</span>
+        <span class="stat-meta">相對資金曝險的淨報酬</span>
     </div>
     <div class="stat-card">
-        <span class="stat-label">Avg days in trade</span>
+        <span class="stat-label">平均持有天數</span>
         <span class="stat-value">{{printf "%.1f" .Metrics.AvgHoldDays}}</span>
-        <span class="stat-meta">From entry to exit</span>
+        <span class="stat-meta">自進場至出場的天數</span>
     </div>
     <div class="stat-card">
-        <span class="stat-label">Total net P&amp;L</span>
+        <span class="stat-label">總淨損益</span>
         <span class="stat-value {{if gt .Metrics.TotalNet 0}}text-positive{{else if lt .Metrics.TotalNet 0}}text-negative{{end}}">{{printf "%.2f" .Metrics.TotalNet}}</span>
-        <span class="stat-meta">Open risk: {{printf "%.2f" .Metrics.OpenRisk}}</span>
+        <span class="stat-meta">未實現風險：{{printf "%.2f" .Metrics.OpenRisk}}</span>
     </div>
 </div>
 {{end}}
 
 <form method="get" class="toolbar">
     <div class="form-field">
-        <label for="filter-instrument">Search</label>
-        <input id="filter-instrument" type="text" name="instrument" value="{{.Filters.Instrument}}" placeholder="Instrument, market, or setup">
+        <label for="filter-instrument">搜尋</label>
+        <input id="filter-instrument" type="text" name="instrument" value="{{.Filters.Instrument}}" placeholder="商品、市場或策略">
     </div>
     <div class="form-field">
-        <label for="filter-direction">Direction</label>
+        <label for="filter-direction">方向</label>
         <select id="filter-direction" name="direction">
-            <option value="">Any direction</option>
-            <option value="LONG" {{if eq .Filters.Direction "LONG"}}selected{{end}}>Long</option>
-            <option value="SHORT" {{if eq .Filters.Direction "SHORT"}}selected{{end}}>Short</option>
+            <option value="">不限</option>
+            <option value="LONG" {{if eq .Filters.Direction "LONG"}}selected{{end}}>多頭</option>
+            <option value="SHORT" {{if eq .Filters.Direction "SHORT"}}selected{{end}}>空頭</option>
         </select>
     </div>
     <div class="form-field">
-        <label for="filter-status">Status</label>
+        <label for="filter-status">狀態</label>
         <select id="filter-status" name="status">
-            <option value="">All trades</option>
-            <option value="open" {{if eq .Filters.Status "open"}}selected{{end}}>Open positions</option>
-            <option value="closed" {{if eq .Filters.Status "closed"}}selected{{end}}>Closed positions</option>
-            <option value="wins" {{if eq .Filters.Status "wins"}}selected{{end}}>Winning trades</option>
-            <option value="losses" {{if eq .Filters.Status "losses"}}selected{{end}}>Losing trades</option>
+            <option value="">全部交易</option>
+            <option value="open" {{if eq .Filters.Status "open"}}selected{{end}}>未平倉</option>
+            <option value="closed" {{if eq .Filters.Status "closed"}}selected{{end}}>已平倉</option>
+            <option value="wins" {{if eq .Filters.Status "wins"}}selected{{end}}>獲利</option>
+            <option value="losses" {{if eq .Filters.Status "losses"}}selected{{end}}>虧損</option>
         </select>
     </div>
     <div class="form-field">
-        <label for="filter-tag">Tag</label>
+        <label for="filter-tag">標籤</label>
         <select id="filter-tag" name="tag">
-            <option value="">All tags</option>
+            <option value="">全部標籤</option>
             {{range .Tags}}
             <option value="{{.}}" {{if eq $.Filters.Tag .}}selected{{end}}>{{formatTag .}}</option>
             {{end}}
         </select>
     </div>
     <div class="toolbar-actions">
-        <button class="btn" type="submit">Apply filters</button>
+        <button class="btn" type="submit">套用條件</button>
         {{if .Filters.Active}}
-        <a class="btn btn-tertiary" href="/">Reset</a>
+        <a class="btn btn-tertiary" href="/">重設</a>
         {{end}}
     </div>
 </form>
@@ -92,12 +92,12 @@
 <table class="data-table">
     <thead>
         <tr>
-            <th>Trade</th>
-            <th>Status</th>
-            <th>Timeline</th>
-            <th>Result</th>
-            <th>R Multiple</th>
-            <th>Follow-ups</th>
+            <th>交易</th>
+            <th>狀態</th>
+            <th>時間軸</th>
+            <th>結果</th>
+            <th>R 倍數</th>
+            <th>後續追蹤</th>
             <th></th>
         </tr>
     </thead>
@@ -106,8 +106,8 @@
         <tr>
             <td>
                 <div class="cell-heading">{{.Instrument}}</div>
-                {{if .Trade.Setup}}<span class="cell-meta">Setup &middot; {{.Trade.Setup}}</span>{{end}}
-                {{if .Trade.Market}}<span class="cell-meta">Market &middot; {{.Trade.Market}}</span>{{end}}
+                {{if .Trade.Setup}}<span class="cell-meta">策略 &middot; {{.Trade.Setup}}</span>{{end}}
+                {{if .Trade.Market}}<span class="cell-meta">市場 &middot; {{.Trade.Market}}</span>{{end}}
                 {{if .Trade.Review.Tags}}
                 <div class="tag-row">
                     {{range .Trade.Review.Tags}}<span class="tag">{{formatTag .}}</span>{{end}}
@@ -116,14 +116,14 @@
             </td>
             <td>
                 <span class="status-pill {{if .IsOpen}}status-open{{else}}status-closed{{end}}">{{.Status}}</span>
-                {{if .HasHold}}<span class="cell-meta">{{printf "%.1f" .HoldDays}} days in market</span>{{end}}
+                {{if .HasHold}}<span class="cell-meta">{{printf "%.1f" .HoldDays}} 天持有</span>{{end}}
             </td>
             <td>
-                <span class="cell-meta"><strong>Entry:</strong> {{.Trade.Entry.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Trade.Entry.Price}} &middot; Qty {{printf "%.2f" .Trade.Entry.Quantity}}</span>
+                <span class="cell-meta"><strong>進場：</strong> {{.Trade.Entry.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Trade.Entry.Price}} &middot; 數量 {{printf "%.2f" .Trade.Entry.Quantity}}</span>
                 {{if .Trade.HasExited}}
-                <span class="cell-meta"><strong>Exit:</strong> {{.Trade.Exit.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Trade.Exit.Price}}</span>
+                <span class="cell-meta"><strong>出場：</strong> {{.Trade.Exit.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Trade.Exit.Price}}</span>
                 {{else}}
-                <span class="cell-meta">Awaiting exit &middot; Fees {{printf "%.2f" .Trade.Entry.Fees}}</span>
+                <span class="cell-meta">尚未出場 &middot; 手續費 {{printf "%.2f" .Trade.Entry.Fees}}</span>
                 {{end}}
             </td>
             <td>
@@ -131,19 +131,19 @@
                 <div class="cell-heading {{if gt .NetResult 0}}text-positive{{else if lt .NetResult 0}}text-negative{{else}}text-muted{{end}}">{{printf "%.2f" .NetResult}}</div>
                 <span class="cell-meta">{{printf "%.2f" .ResultPercent}}%</span>
                 {{else}}
-                <span class="cell-meta">Realized fees {{printf "%.2f" .Trade.Entry.Fees}}</span>
+                <span class="cell-meta">已發生手續費 {{printf "%.2f" .Trade.Entry.Fees}}</span>
                 {{end}}
             </td>
             <td>
                 <div class="cell-heading">{{printf "%.2f" .RMultiple}}</div>
-                {{if .Trade.Entry.Target}}<span class="cell-meta">Target {{printf "%.2f" (ptrValue .Trade.Entry.Target)}} | {{printf "%.2f" .RMultiple}}R</span>{{end}}
+                {{if .Trade.Entry.Target}}<span class="cell-meta">目標 {{printf "%.2f" (ptrValue .Trade.Entry.Target)}} | {{printf "%.2f" .RMultiple}}R</span>{{end}}
             </td>
             <td>
-                <span class="cell-meta">7d: {{if .FollowUp7}}{{printf "%.2f" (ptrValue .FollowUp7)}}%{{else}}—{{end}}</span>
-                <span class="cell-meta">30d: {{if .FollowUp30}}{{printf "%.2f" (ptrValue .FollowUp30)}}%{{else}}—{{end}}</span>
+                <span class="cell-meta">第 7 天：{{if .FollowUp7}}{{printf "%.2f" (ptrValue .FollowUp7)}}%{{else}}—{{end}}</span>
+                <span class="cell-meta">第 30 天：{{if .FollowUp30}}{{printf "%.2f" (ptrValue .FollowUp30)}}%{{else}}—{{end}}</span>
             </td>
             <td class="table-actions">
-                <a class="btn btn-ghost" href="/trades/{{.ID}}">View</a>
+                <a class="btn btn-ghost" href="/trades/{{.ID}}">查看</a>
             </td>
         </tr>
     {{end}}
@@ -151,12 +151,12 @@
 </table>
 {{else}}
 <div class="empty-state">
-    <h2>No trades to show yet</h2>
+    <h2>尚無交易紀錄</h2>
     {{if .Filters.Active}}
-        <p>Try broadening your filters or <a href="/">resetting the view</a> to see the full journal.</p>
+        <p>請調整篩選條件，或 <a href="/">重設列表</a> 以檢視全部紀錄。</p>
     {{else}}
-        <p>Kick things off by logging your first trade to unlock analytics and review workflows.</p>
-        <p><a class="btn btn-ghost" href="/trades/new">Record your first trade</a></p>
+        <p>從建立第一筆交易開始，立即啟用統計與回顧流程。</p>
+        <p><a class="btn btn-ghost" href="/trades/new">新增第一筆交易</a></p>
     {{end}}
 </div>
 {{end}}

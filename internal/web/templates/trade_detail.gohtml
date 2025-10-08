@@ -1,17 +1,17 @@
-{{define "title"}}Trade - {{.Trade.Instrument}}{{end}}
+{{define "title"}}交易 - {{.Trade.Instrument}}{{end}}
 {{define "content"}}
 <div class="page-header">
     <div>
-        <a class="back-link" href="/">&larr; Back to journal</a>
+        <a class="back-link" href="/">&larr; 返回日誌</a>
         <h1>{{.Trade.Instrument}}</h1>
-        <div class="detail-meta">{{.Trade.Direction}} &middot; Created {{.Trade.CreatedAt.Format "2006-01-02 15:04"}}</div>
-        {{if .Trade.Setup}}<div class="detail-meta">Setup: {{.Trade.Setup}}</div>{{end}}
-        {{if .Trade.Market}}<div class="detail-meta">Market: {{.Trade.Market}}</div>{{end}}
+        <div class="detail-meta">{{if eq .Trade.Direction "LONG"}}多頭{{else if eq .Trade.Direction "SHORT"}}空頭{{else}}{{.Trade.Direction}}{{end}} &middot; 建立於 {{.Trade.CreatedAt.Format "2006-01-02 15:04"}}</div>
+        {{if .Trade.Setup}}<div class="detail-meta">策略：{{.Trade.Setup}}</div>{{end}}
+        {{if .Trade.Market}}<div class="detail-meta">市場：{{.Trade.Market}}</div>{{end}}
     </div>
     <div class="page-actions">
-        <a class="btn btn-secondary" href="/trades/{{.Trade.ID}}/edit">Edit trade</a>
-        <form method="post" action="/trades/{{.Trade.ID}}/delete" onsubmit="return confirm('Delete this trade?');">
-            <button class="btn btn-danger" type="submit">Delete</button>
+        <a class="btn btn-secondary" href="/trades/{{.Trade.ID}}/edit">編輯</a>
+        <form method="post" action="/trades/{{.Trade.ID}}/delete" onsubmit="return confirm('確認刪除這筆交易？');">
+            <button class="btn btn-danger" type="submit">刪除</button>
         </form>
     </div>
 </div>
@@ -22,58 +22,58 @@
 
 <div class="stat-grid">
     <div class="stat-card">
-        <span class="stat-label">Net P&amp;L</span>
+        <span class="stat-label">淨損益</span>
         <span class="stat-value {{if gt .Metrics.Net 0}}text-positive{{else if lt .Metrics.Net 0}}text-negative{{end}}">{{printf "%.2f" .Metrics.Net}}</span>
-        <span class="stat-meta">{{printf "%.2f" .Metrics.NetPercent}}% vs exposure</span>
+        <span class="stat-meta">相對資金曝險 {{printf "%.2f" .Metrics.NetPercent}}%</span>
     </div>
     <div class="stat-card">
-        <span class="stat-label">R multiple</span>
+        <span class="stat-label">R 倍數</span>
         <span class="stat-value">{{printf "%.2f" .Metrics.RMultiple}}</span>
-        <span class="stat-meta">Total risk {{printf "%.2f" .Metrics.TotalRisk}}</span>
+        <span class="stat-meta">總風險 {{printf "%.2f" .Metrics.TotalRisk}}</span>
     </div>
     <div class="stat-card">
-        <span class="stat-label">Target R</span>
+        <span class="stat-label">目標 R 值</span>
         <span class="stat-value">{{printf "%.2f" .Metrics.TargetR}}</span>
-        <span class="stat-meta">Based on planned target</span>
+        <span class="stat-meta">以預計目標計算</span>
     </div>
     <div class="stat-card">
-        <span class="stat-label">Follow-up impact</span>
-        <span class="stat-value">7d {{if .Metrics.FollowUp7}}{{printf "%.2f" .Metrics.FollowUp7}}%{{else}}—{{end}}</span>
-        <span class="stat-meta">30d {{if .Metrics.FollowUp30}}{{printf "%.2f" .Metrics.FollowUp30}}%{{else}}—{{end}}</span>
+        <span class="stat-label">後續影響</span>
+        <span class="stat-value">第 7 天 {{if .Metrics.FollowUp7}}{{printf "%.2f" .Metrics.FollowUp7}}%{{else}}—{{end}}</span>
+        <span class="stat-meta">第 30 天 {{if .Metrics.FollowUp30}}{{printf "%.2f" .Metrics.FollowUp30}}%{{else}}—{{end}}</span>
     </div>
 </div>
 
 <div class="detail-grid">
     <div class="stack">
         <section class="card">
-            <h2 class="card-title">Trade timeline</h2>
+            <h2 class="card-title">交易時間軸</h2>
             <dl class="detail-list">
                 <div>
-                    <dt>Entry</dt>
-                    <dd>{{.Trade.Entry.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Trade.Entry.Price}} &middot; Qty {{printf "%.2f" .Trade.Entry.Quantity}} &middot; Fees {{printf "%.2f" .Trade.Entry.Fees}}</dd>
-                    {{if .Trade.Entry.StopLoss}}<dd>Stop loss: {{printf "%.2f" (ptrValue .Trade.Entry.StopLoss)}}</dd>{{end}}
-                    {{if .Trade.Entry.Target}}<dd>Target: {{printf "%.2f" (ptrValue .Trade.Entry.Target)}} ({{printf "%.2f" .Metrics.TargetR}}R)</dd>{{end}}
+                    <dt>進場</dt>
+                    <dd>{{.Trade.Entry.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Trade.Entry.Price}} &middot; 數量 {{printf "%.2f" .Trade.Entry.Quantity}} &middot; 手續費 {{printf "%.2f" .Trade.Entry.Fees}}</dd>
+                    {{if .Trade.Entry.StopLoss}}<dd>停損：{{printf "%.2f" (ptrValue .Trade.Entry.StopLoss)}}</dd>{{end}}
+                    {{if .Trade.Entry.Target}}<dd>目標：{{printf "%.2f" (ptrValue .Trade.Entry.Target)}}（{{printf "%.2f" .Metrics.TargetR}}R）</dd>{{end}}
                     {{if .Trade.Entry.Notes}}<dd>{{.Trade.Entry.Notes}}</dd>{{end}}
                 </div>
                 <div>
-                    <dt>{{if .Trade.Exit}}Exit{{else}}Position status{{end}}</dt>
+                    <dt>{{if .Trade.Exit}}出場{{else}}部位狀態{{end}}</dt>
                     {{if .Trade.Exit}}
-                        <dd>{{.Trade.Exit.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Trade.Exit.Price}} &middot; Qty {{printf "%.2f" .Trade.Exit.Quantity}} &middot; Fees {{printf "%.2f" .Trade.Exit.Fees}}</dd>
-                        {{if .Trade.Exit.Reason}}<dd>Reason: {{.Trade.Exit.Reason}}</dd>{{end}}
+                        <dd>{{.Trade.Exit.Date.Format "2006-01-02"}} @ {{printf "%.2f" .Trade.Exit.Price}} &middot; 數量 {{printf "%.2f" .Trade.Exit.Quantity}} &middot; 手續費 {{printf "%.2f" .Trade.Exit.Fees}}</dd>
+                        {{if .Trade.Exit.Reason}}<dd>原因：{{.Trade.Exit.Reason}}</dd>{{end}}
                         {{if .Trade.Exit.Notes}}<dd>{{.Trade.Exit.Notes}}</dd>{{end}}
                     {{else}}
-                        <dd>Position is still open. Track the unrealized outcome at a reference price:</dd>
+                        <dd>部位尚未出場，可填寫參考價以估算未實現績效：</dd>
                         <form class="inline-form" method="get">
                             <div class="form-field">
-                                <label for="close_price">Reference price</label>
+                                <label for="close_price">參考價格</label>
                                 <input id="close_price" type="number" step="0.0001" name="close_price" value="{{if .QueryClose}}{{printf "%.4f" .QueryClose}}{{end}}">
                             </div>
                             <div class="form-field" style="align-self:end;">
-                                <button class="btn" type="submit">Update</button>
+                                <button class="btn" type="submit">更新</button>
                             </div>
                         </form>
                         {{if .QueryClose}}
-                            <dd>Unrealized: {{printf "%.2f" .Metrics.Unrealized}} ({{printf "%.2f" .Metrics.UnrealizedPct}}%)</dd>
+                            <dd>未實現損益：{{printf "%.2f" .Metrics.Unrealized}}（{{printf "%.2f" .Metrics.UnrealizedPct}}%）</dd>
                         {{end}}
                     {{end}}
                 </div>
@@ -81,11 +81,11 @@
         </section>
 
         <section class="card">
-            <h2 class="card-title">Post-trade review</h2>
+            <h2 class="card-title">事後回顧</h2>
             <dl class="detail-list">
-                {{if .Trade.Review.OutcomeSummary}}<div><dt>Outcome</dt><dd>{{.Trade.Review.OutcomeSummary}}</dd></div>{{end}}
-                {{if .Trade.Review.Psychology}}<div><dt>Psychology</dt><dd>{{.Trade.Review.Psychology}}</dd></div>{{end}}
-                {{if .Trade.Review.Improvements}}<div><dt>Improvements</dt><dd>{{.Trade.Review.Improvements}}</dd></div>{{end}}
+                {{if .Trade.Review.OutcomeSummary}}<div><dt>結果摘要</dt><dd>{{.Trade.Review.OutcomeSummary}}</dd></div>{{end}}
+                {{if .Trade.Review.Psychology}}<div><dt>心理狀態</dt><dd>{{.Trade.Review.Psychology}}</dd></div>{{end}}
+                {{if .Trade.Review.Improvements}}<div><dt>待改進處</dt><dd>{{.Trade.Review.Improvements}}</dd></div>{{end}}
             </dl>
             {{if .Trade.Review.Tags}}
             <div class="chip-row">
@@ -95,32 +95,32 @@
         </section>
 
         <section class="card">
-            <h2 class="card-title">Follow-ups</h2>
+            <h2 class="card-title">後續追蹤</h2>
             <form method="post" action="/trades/{{.Trade.ID}}/followups" class="inline-form">
                 <div class="form-field">
-                    <label for="days_after">Days after exit</label>
+                    <label for="days_after">距離出場的天數</label>
                     <input id="days_after" type="number" name="days_after" min="1" required>
                 </div>
                 <div class="form-field">
-                    <label for="follow_price">Price</label>
+                    <label for="follow_price">價格</label>
                     <input id="follow_price" type="number" step="0.0001" name="price" required>
                 </div>
                 <div class="form-field">
-                    <label for="follow_notes">Notes</label>
+                    <label for="follow_notes">備註</label>
                     <input id="follow_notes" type="text" name="notes">
                 </div>
                 <div class="form-field" style="align-self:end;">
-                    <button class="btn" type="submit">Add follow-up</button>
+                    <button class="btn" type="submit">新增追蹤</button>
                 </div>
             </form>
             <table class="data-table" style="margin-top:1.25rem;">
                 <thead>
                     <tr>
-                        <th>Days after</th>
-                        <th>Price</th>
-                        <th>Change vs exit</th>
-                        <th>Logged</th>
-                        <th>Notes</th>
+                        <th>距離出場天數</th>
+                        <th>價格</th>
+                        <th>相對出場變化</th>
+                        <th>紀錄時間</th>
+                        <th>備註</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -128,12 +128,12 @@
                     <tr>
                         <td>{{.DaysAfter}}</td>
                         <td>{{printf "%.2f" .Price}}</td>
-                        <td>{{if $.Trade.Exit}}{{printf "%.2f" (followUpChange $.Trade .)}}%{{else}}N/A{{end}}</td>
+                        <td>{{if $.Trade.Exit}}{{printf "%.2f" (followUpChange $.Trade .)}}%{{else}}—{{end}}</td>
                         <td>{{.LoggedAt.Format "2006-01-02 15:04"}}</td>
                         <td>{{.Notes}}</td>
                     </tr>
                 {{else}}
-                    <tr><td colspan="5">No follow-ups recorded yet.</td></tr>
+                    <tr><td colspan="5">尚未新增後續追蹤。</td></tr>
                 {{end}}
                 </tbody>
             </table>
@@ -142,27 +142,27 @@
 
     <div class="stack">
         <section class="card">
-            <h2 class="card-title">Risk management</h2>
+            <h2 class="card-title">風險控管</h2>
             <dl class="detail-list">
-                {{if .Trade.RiskManagement.Thesis}}<div><dt>Thesis</dt><dd>{{.Trade.RiskManagement.Thesis}}</dd></div>{{end}}
-                {{if .Trade.RiskManagement.Plan}}<div><dt>Plan</dt><dd>{{.Trade.RiskManagement.Plan}}</dd></div>{{end}}
-                {{if .Trade.RiskManagement.Checklist}}<div><dt>Checklist</dt><dd>{{.Trade.RiskManagement.Checklist}}</dd></div>{{end}}
-                {{if gt .Trade.RiskManagement.MaxRiskAmount 0}}<div><dt>Max risk</dt><dd>{{printf "%.2f" .Trade.RiskManagement.MaxRiskAmount}}</dd></div>{{end}}
-                {{if .Trade.RiskManagement.PositionSizing}}<div><dt>Position sizing</dt><dd>{{.Trade.RiskManagement.PositionSizing}}</dd></div>{{end}}
-                {{if .Trade.RiskManagement.ContingencyPlan}}<div><dt>Contingency</dt><dd>{{.Trade.RiskManagement.ContingencyPlan}}</dd></div>{{end}}
+                {{if .Trade.RiskManagement.Thesis}}<div><dt>交易假設</dt><dd>{{.Trade.RiskManagement.Thesis}}</dd></div>{{end}}
+                {{if .Trade.RiskManagement.Plan}}<div><dt>交易計畫</dt><dd>{{.Trade.RiskManagement.Plan}}</dd></div>{{end}}
+                {{if .Trade.RiskManagement.Checklist}}<div><dt>檢查清單</dt><dd>{{.Trade.RiskManagement.Checklist}}</dd></div>{{end}}
+                {{if gt .Trade.RiskManagement.MaxRiskAmount 0}}<div><dt>最大可承擔風險</dt><dd>{{printf "%.2f" .Trade.RiskManagement.MaxRiskAmount}}</dd></div>{{end}}
+                {{if .Trade.RiskManagement.PositionSizing}}<div><dt>部位規模計算</dt><dd>{{.Trade.RiskManagement.PositionSizing}}</dd></div>{{end}}
+                {{if .Trade.RiskManagement.ContingencyPlan}}<div><dt>應變方案</dt><dd>{{.Trade.RiskManagement.ContingencyPlan}}</dd></div>{{end}}
             </dl>
         </section>
 
         <section class="card">
-            <h2 class="card-title">Context &amp; sentiment</h2>
+            <h2 class="card-title">市場背景與信心</h2>
             <dl class="detail-list">
-                {{if .Trade.MarketContext}}<div><dt>Market context</dt><dd>{{.Trade.MarketContext}}</dd></div>{{end}}
-                {{if .Trade.AdditionalNotes}}<div><dt>Additional notes</dt><dd>{{.Trade.AdditionalNotes}}</dd></div>{{end}}
+                {{if .Trade.MarketContext}}<div><dt>市場背景</dt><dd>{{.Trade.MarketContext}}</dd></div>{{end}}
+                {{if .Trade.AdditionalNotes}}<div><dt>其他備註</dt><dd>{{.Trade.AdditionalNotes}}</dd></div>{{end}}
             </dl>
             <div class="chip-row">
-                {{if .Trade.ExecutionScore}}<span class="tag">Execution {{printf "%.1f" (ptrValue .Trade.ExecutionScore)}}</span>{{end}}
-                {{if .Trade.ConfidenceBefore}}<span class="tag">Confidence before {{printf "%.1f" (ptrValue .Trade.ConfidenceBefore)}}</span>{{end}}
-                {{if .Trade.ConfidenceAfter}}<span class="tag">Confidence after {{printf "%.1f" (ptrValue .Trade.ConfidenceAfter)}}</span>{{end}}
+                {{if .Trade.ExecutionScore}}<span class="tag">執行評分 {{printf "%.1f" (ptrValue .Trade.ExecutionScore)}}</span>{{end}}
+                {{if .Trade.ConfidenceBefore}}<span class="tag">進場前信心 {{printf "%.1f" (ptrValue .Trade.ConfidenceBefore)}}</span>{{end}}
+                {{if .Trade.ConfidenceAfter}}<span class="tag">出場後信心 {{printf "%.1f" (ptrValue .Trade.ConfidenceAfter)}}</span>{{end}}
             </div>
         </section>
     </div>

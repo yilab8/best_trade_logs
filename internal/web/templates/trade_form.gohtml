@@ -3,184 +3,184 @@
 <div class="page-header">
     <div>
         <p class="eyebrow">{{.Title}}</p>
-        <h1>Capture every detail</h1>
-        <p class="subtitle">Document the setup, plan, execution, and reflection to make every trade a learning opportunity.</p>
+        <h1>完整記錄每個細節</h1>
+        <p class="subtitle">紀錄策略、計畫、執行與回顧，讓每筆交易成為可複盤的資產。</p>
     </div>
 </div>
 
 <form method="post" action="{{.Action}}">
     <section class="form-card">
-        <h2 class="card-title">Trade basics</h2>
+        <h2 class="card-title">基本資訊</h2>
         <div class="form-grid">
             <div class="form-field">
-                <label for="instrument">Instrument</label>
+                <label for="instrument">商品</label>
                 <input id="instrument" type="text" name="instrument" value="{{.Trade.Instrument}}" required>
             </div>
             <div class="form-field">
-                <label for="market">Market</label>
+                <label for="market">市場</label>
                 <input id="market" type="text" name="market" value="{{.Trade.Market}}">
             </div>
             <div class="form-field">
-                <label for="direction">Direction</label>
+                <label for="direction">方向</label>
                 <select id="direction" name="direction">
-                    <option value="LONG" {{if eq .Trade.Direction "LONG"}}selected{{end}}>Long</option>
-                    <option value="SHORT" {{if eq .Trade.Direction "SHORT"}}selected{{end}}>Short</option>
+                    <option value="LONG" {{if eq .Trade.Direction "LONG"}}selected{{end}}>多頭</option>
+                    <option value="SHORT" {{if eq .Trade.Direction "SHORT"}}selected{{end}}>空頭</option>
                 </select>
             </div>
             <div class="form-field">
-                <label for="setup">Setup</label>
+                <label for="setup">策略</label>
                 <input id="setup" type="text" name="setup" value="{{.Trade.Setup}}">
             </div>
         </div>
     </section>
 
     <section class="form-card">
-        <h2 class="card-title">Entry</h2>
+        <h2 class="card-title">進場</h2>
         <div class="form-grid">
             <div class="form-field">
-                <label for="entry_date">Date</label>
+                <label for="entry_date">日期</label>
                 <input id="entry_date" type="date" name="entry_date" value="{{if .Trade.Entry.Date.IsZero}}{{else}}{{.Trade.Entry.Date.Format "2006-01-02"}}{{end}}" required>
             </div>
             <div class="form-field">
-                <label for="entry_price">Price</label>
+                <label for="entry_price">價格</label>
                 <input id="entry_price" type="number" step="0.0001" name="entry_price" value="{{printf "%.4f" .Trade.Entry.Price}}" required>
             </div>
             <div class="form-field">
-                <label for="entry_quantity">Quantity</label>
+                <label for="entry_quantity">數量</label>
                 <input id="entry_quantity" type="number" step="0.0001" name="entry_quantity" value="{{printf "%.4f" .Trade.Entry.Quantity}}" required>
             </div>
             <div class="form-field">
-                <label for="entry_fees">Fees</label>
+                <label for="entry_fees">手續費</label>
                 <input id="entry_fees" type="number" step="0.01" name="entry_fees" value="{{printf "%.2f" .Trade.Entry.Fees}}">
             </div>
             <div class="form-field">
-                <label for="entry_stop_loss">Stop loss</label>
+                <label for="entry_stop_loss">停損</label>
                 <input id="entry_stop_loss" type="number" step="0.0001" name="entry_stop_loss" value="{{if .Trade.Entry.StopLoss}}{{printf "%.4f" (ptrValue .Trade.Entry.StopLoss)}}{{end}}">
             </div>
             <div class="form-field">
-                <label for="entry_target">Target</label>
+                <label for="entry_target">目標價</label>
                 <input id="entry_target" type="number" step="0.0001" name="entry_target" value="{{if .Trade.Entry.Target}}{{printf "%.4f" (ptrValue .Trade.Entry.Target)}}{{end}}">
             </div>
             <div class="form-field">
-                <label for="entry_risk">Manual risk/share</label>
+                <label for="entry_risk">自訂每股風險</label>
                 <input id="entry_risk" type="number" step="0.0001" name="entry_risk" value="{{if .Trade.Entry.RiskPerShare}}{{printf "%.4f" (ptrValue .Trade.Entry.RiskPerShare)}}{{end}}">
             </div>
         </div>
         <div class="form-field" style="margin-top:1rem;">
-            <label for="entry_notes">Entry notes</label>
+            <label for="entry_notes">進場備註</label>
             <textarea id="entry_notes" name="entry_notes">{{.Trade.Entry.Notes}}</textarea>
         </div>
     </section>
 
     <section class="form-card">
-        <h2 class="card-title">Risk management &amp; plan</h2>
+        <h2 class="card-title">風險控管與計畫</h2>
         <div class="form-field">
-            <label for="thesis">Trade thesis</label>
+            <label for="thesis">交易假設</label>
             <textarea id="thesis" name="thesis">{{.Trade.RiskManagement.Thesis}}</textarea>
         </div>
         <div class="form-field">
-            <label for="plan">Plan</label>
+            <label for="plan">交易計畫</label>
             <textarea id="plan" name="plan">{{.Trade.RiskManagement.Plan}}</textarea>
         </div>
         <div class="form-field">
-            <label for="checklist">Checklist confirmation</label>
+            <label for="checklist">檢查清單確認</label>
             <textarea id="checklist" name="checklist">{{.Trade.RiskManagement.Checklist}}</textarea>
         </div>
         <div class="form-grid" style="margin-top:1rem;">
             <div class="form-field">
-                <label for="max_risk">Max risk amount</label>
+                <label for="max_risk">最大可承擔風險</label>
                 <input id="max_risk" type="number" step="0.01" name="max_risk" value="{{printf "%.2f" .Trade.RiskManagement.MaxRiskAmount}}">
             </div>
             <div class="form-field">
-                <label for="position_sizing">Position sizing logic</label>
+                <label for="position_sizing">部位規模計算</label>
                 <textarea id="position_sizing" name="position_sizing">{{.Trade.RiskManagement.PositionSizing}}</textarea>
             </div>
             <div class="form-field">
-                <label for="contingency_plan">Contingency plan</label>
+                <label for="contingency_plan">應變方案</label>
                 <textarea id="contingency_plan" name="contingency_plan">{{.Trade.RiskManagement.ContingencyPlan}}</textarea>
             </div>
         </div>
     </section>
 
     <section class="form-card">
-        <h2 class="card-title">Exit (optional)</h2>
+        <h2 class="card-title">出場（選填）</h2>
         <div class="form-grid">
             <div class="form-field">
-                <label for="exit_date">Date</label>
+                <label for="exit_date">日期</label>
                 <input id="exit_date" type="date" name="exit_date" value="{{if .Trade.Exit}}{{.Trade.Exit.Date.Format "2006-01-02"}}{{end}}">
             </div>
             <div class="form-field">
-                <label for="exit_price">Price</label>
+                <label for="exit_price">價格</label>
                 <input id="exit_price" type="number" step="0.0001" name="exit_price" value="{{if .Trade.Exit}}{{printf "%.4f" .Trade.Exit.Price}}{{end}}">
             </div>
             <div class="form-field">
-                <label for="exit_quantity">Quantity</label>
+                <label for="exit_quantity">數量</label>
                 <input id="exit_quantity" type="number" step="0.0001" name="exit_quantity" value="{{if .Trade.Exit}}{{printf "%.4f" .Trade.Exit.Quantity}}{{end}}">
             </div>
             <div class="form-field">
-                <label for="exit_fees">Fees</label>
+                <label for="exit_fees">手續費</label>
                 <input id="exit_fees" type="number" step="0.01" name="exit_fees" value="{{if .Trade.Exit}}{{printf "%.2f" .Trade.Exit.Fees}}{{end}}">
             </div>
         </div>
         <div class="form-field" style="margin-top:1rem;">
-            <label for="exit_reason">Exit reason</label>
+            <label for="exit_reason">出場原因</label>
             <textarea id="exit_reason" name="exit_reason">{{if .Trade.Exit}}{{.Trade.Exit.Reason}}{{end}}</textarea>
         </div>
         <div class="form-field">
-            <label for="exit_notes">Exit notes</label>
+            <label for="exit_notes">出場備註</label>
             <textarea id="exit_notes" name="exit_notes">{{if .Trade.Exit}}{{.Trade.Exit.Notes}}{{end}}</textarea>
         </div>
     </section>
 
     <section class="form-card">
-        <h2 class="card-title">Post-trade review</h2>
+        <h2 class="card-title">事後回顧</h2>
         <div class="form-field">
-            <label for="outcome">Outcome summary</label>
+            <label for="outcome">結果摘要</label>
             <textarea id="outcome" name="outcome">{{.Trade.Review.OutcomeSummary}}</textarea>
         </div>
         <div class="form-field">
-            <label for="psychology">Psychology</label>
+            <label for="psychology">心理狀態</label>
             <textarea id="psychology" name="psychology">{{.Trade.Review.Psychology}}</textarea>
         </div>
         <div class="form-field">
-            <label for="improvements">Improvements</label>
+            <label for="improvements">待改進處</label>
             <textarea id="improvements" name="improvements">{{.Trade.Review.Improvements}}</textarea>
         </div>
         <div class="form-field">
-            <label for="tags">Tags (comma separated)</label>
+            <label for="tags">標籤（以逗號分隔）</label>
             <input id="tags" type="text" name="tags" value="{{join .Trade.Review.Tags ", "}}">
         </div>
     </section>
 
     <section class="form-card">
-        <h2 class="card-title">Additional context</h2>
+        <h2 class="card-title">其他背景</h2>
         <div class="form-field">
-            <label for="market_context">Market context</label>
+            <label for="market_context">市場背景</label>
             <textarea id="market_context" name="market_context">{{.Trade.MarketContext}}</textarea>
         </div>
         <div class="form-field">
-            <label for="additional_notes">Additional notes</label>
+            <label for="additional_notes">其他備註</label>
             <textarea id="additional_notes" name="additional_notes">{{.Trade.AdditionalNotes}}</textarea>
         </div>
         <div class="form-grid" style="margin-top:1rem;">
             <div class="form-field">
-                <label for="execution_score">Execution score (0-10)</label>
+                <label for="execution_score">執行評分（0-10）</label>
                 <input id="execution_score" type="number" step="0.1" name="execution_score" value="{{if .Trade.ExecutionScore}}{{printf "%.1f" (ptrValue .Trade.ExecutionScore)}}{{end}}">
             </div>
             <div class="form-field">
-                <label for="confidence_before">Confidence before</label>
+                <label for="confidence_before">進場前信心</label>
                 <input id="confidence_before" type="number" step="0.1" name="confidence_before" value="{{if .Trade.ConfidenceBefore}}{{printf "%.1f" (ptrValue .Trade.ConfidenceBefore)}}{{end}}">
             </div>
             <div class="form-field">
-                <label for="confidence_after">Confidence after</label>
+                <label for="confidence_after">出場後信心</label>
                 <input id="confidence_after" type="number" step="0.1" name="confidence_after" value="{{if .Trade.ConfidenceAfter}}{{printf "%.1f" (ptrValue .Trade.ConfidenceAfter)}}{{end}}">
             </div>
         </div>
     </section>
 
     <div class="form-actions">
-        <button class="btn" type="submit">Save trade</button>
-        <a class="btn btn-tertiary" href="/">Cancel</a>
+        <button class="btn" type="submit">儲存</button>
+        <a class="btn btn-tertiary" href="/">取消</a>
     </div>
 </form>
 {{end}}
