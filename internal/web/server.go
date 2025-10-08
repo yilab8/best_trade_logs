@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	domain "best_trade_logs/internal/domain/trade"
 	tradesvc "best_trade_logs/internal/service/trade"
@@ -53,9 +56,20 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summaries := make([]tradeSummary, 0, len(trades))
-	for _, tr := range trades {
-		summary := tradeSummary{Trade: tr, NetResult: tr.NetResult(), ResultPercent: tr.ResultPercent(), RMultiple: tr.RMultiple()}
+	filters := parseIndexFilters(r)
+	filtered := applyIndexFilters(trades, filters)
+
+	summaries := make([]tradeSummary, 0, len(filtered))
+	now := time.Now().UTC()
+	for _, tr := range filtered {
+		summary := tradeSummary{
+			Trade:         tr,
+			NetResult:     tr.NetResult(),
+			ResultPercent: tr.ResultPercent(),
+			RMultiple:     tr.RMultiple(),
+			Status:        tradeStatus(tr),
+			IsOpen:        !tr.HasExited(),
+		}
 		if v, ok := tr.FollowUpChangePercent(7); ok {
 			val := v
 			summary.FollowUp7 = &val
@@ -64,17 +78,33 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 			val := v
 			summary.FollowUp30 = &val
 		}
+		if hold, ok := holdDays(tr, now); ok {
+			summary.HoldDays = hold
+			summary.HasHold = true
+		}
 		summaries = append(summaries, summary)
 	}
 
+	metrics := summarizeTrades(filtered, now)
+	tags := collectTags(trades)
 	data := struct {
-		Title  string
-		Trades []tradeSummary
-		Flash  string
+		Title         string
+		Trades        []tradeSummary
+		Flash         string
+		Metrics       dashboardMetrics
+		Filters       indexFilters
+		TotalTrades   int
+		VisibleTrades int
+		Tags          []string
 	}{
-		Title:  "Trade Journal",
-		Trades: summaries,
-		Flash:  r.URL.Query().Get("flash"),
+		Title:         "交易日誌",
+		Trades:        summaries,
+		Flash:         r.URL.Query().Get("flash"),
+		Metrics:       metrics,
+		Filters:       filters,
+		TotalTrades:   len(trades),
+		VisibleTrades: len(filtered),
+		Tags:          tags,
 	}
 
 	s.render(w, "index.gohtml", data)
@@ -97,7 +127,7 @@ func (s *Server) handleNewTrade(w http.ResponseWriter, r *http.Request) {
 	tr := &domain.Trade{}
 	tr.Direction = domain.DirectionLong
 	data := map[string]interface{}{
-		"Title":  "Record new trade",
+		"Title":  "新增交易",
 		"Trade":  tr,
 		"Action": "/trades",
 	}
@@ -130,7 +160,7 @@ func (s *Server) handleTradeRoutes(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCreateTrade(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
+		http.Error(w, "表單格式錯誤", http.StatusBadRequest)
 		return
 	}
 	tr, errs := buildTradeFromForm(r)
@@ -142,7 +172,7 @@ func (s *Server) handleCreateTrade(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/trades/%s?flash=Trade%%20recorded", tr.ID), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/trades/%s?flash=%s", tr.ID, url.QueryEscape("交易已建立")), http.StatusSeeOther)
 }
 
 func (s *Server) handleShowTrade(w http.ResponseWriter, r *http.Request, id string) {
@@ -165,7 +195,7 @@ func (s *Server) handleShowTrade(w http.ResponseWriter, r *http.Request, id stri
 		QueryClose *float64
 		Flash      string
 	}{
-		Title:      fmt.Sprintf("Trade - %s", tr.Instrument),
+		Title:      fmt.Sprintf("交易 - %s", tr.Instrument),
 		Trade:      tr,
 		Metrics:    metrics,
 		QueryClose: metrics.QueryClose,
@@ -185,7 +215,7 @@ func (s *Server) handleEditTrade(w http.ResponseWriter, r *http.Request, id stri
 		return
 	}
 	data := map[string]interface{}{
-		"Title":  "Edit trade",
+		"Title":  "編輯交易",
 		"Trade":  tr,
 		"Action": fmt.Sprintf("/trades/%s/update", tr.ID),
 	}
@@ -203,7 +233,7 @@ func (s *Server) handleUpdateTrade(w http.ResponseWriter, r *http.Request, id st
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
+		http.Error(w, "表單格式錯誤", http.StatusBadRequest)
 		return
 	}
 	tr, errs := buildTradeFromForm(r)
@@ -222,7 +252,7 @@ func (s *Server) handleUpdateTrade(w http.ResponseWriter, r *http.Request, id st
 		http.Error(w, err.Error(), status)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/trades/%s?flash=Trade%%20updated", tr.ID), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/trades/%s?flash=%s", tr.ID, url.QueryEscape("交易已更新")), http.StatusSeeOther)
 }
 
 func (s *Server) handleDeleteTrade(w http.ResponseWriter, r *http.Request, id string) {
@@ -234,22 +264,22 @@ func (s *Server) handleDeleteTrade(w http.ResponseWriter, r *http.Request, id st
 		http.Error(w, err.Error(), status)
 		return
 	}
-	http.Redirect(w, r, "/?flash=Trade%%20deleted", http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/?flash=%s", url.QueryEscape("交易已刪除")), http.StatusSeeOther)
 }
 
 func (s *Server) handleAddFollowUp(w http.ResponseWriter, r *http.Request, id string) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
+		http.Error(w, "表單格式錯誤", http.StatusBadRequest)
 		return
 	}
 	days, err := strconv.Atoi(strings.TrimSpace(r.FormValue("days_after")))
 	if err != nil {
-		http.Error(w, "invalid days", http.StatusBadRequest)
+		http.Error(w, "天數格式錯誤", http.StatusBadRequest)
 		return
 	}
 	price, err := strconv.ParseFloat(strings.TrimSpace(r.FormValue("price")), 64)
 	if err != nil {
-		http.Error(w, "invalid price", http.StatusBadRequest)
+		http.Error(w, "價格格式錯誤", http.StatusBadRequest)
 		return
 	}
 	follow := domain.FollowUp{DaysAfter: days, Price: price, Notes: strings.TrimSpace(r.FormValue("notes"))}
@@ -261,7 +291,7 @@ func (s *Server) handleAddFollowUp(w http.ResponseWriter, r *http.Request, id st
 		http.Error(w, err.Error(), status)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/trades/%s?flash=Follow-up%%20added", id), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/trades/%s?flash=%s", id, url.QueryEscape("已新增後續追蹤")), http.StatusSeeOther)
 }
 
 func (s *Server) render(w http.ResponseWriter, name string, data interface{}) {
@@ -284,6 +314,10 @@ type tradeSummary struct {
 	RMultiple     float64
 	FollowUp7     *float64
 	FollowUp30    *float64
+	Status        string
+	HoldDays      float64
+	HasHold       bool
+	IsOpen        bool
 }
 
 type tradeMetrics struct {
@@ -325,6 +359,217 @@ func buildTradeMetrics(tr *domain.Trade, closePrice string) tradeMetrics {
 	return metrics
 }
 
+type indexFilters struct {
+	Instrument string
+	Direction  string
+	Status     string
+	Tag        string
+}
+
+func (f indexFilters) Active() bool {
+	return f.Instrument != "" || f.Direction != "" || f.Status != "" || f.Tag != ""
+}
+
+type dashboardMetrics struct {
+	Total        int
+	Closed       int
+	Open         int
+	WinRate      float64
+	AvgR         float64
+	AvgHoldDays  float64
+	AvgReturnPct float64
+	TotalNet     float64
+	OpenRisk     float64
+}
+
+func parseIndexFilters(r *http.Request) indexFilters {
+	q := r.URL.Query()
+	filters := indexFilters{
+		Instrument: strings.TrimSpace(q.Get("instrument")),
+		Direction:  strings.ToUpper(strings.TrimSpace(q.Get("direction"))),
+		Status:     strings.ToLower(strings.TrimSpace(q.Get("status"))),
+		Tag:        strings.ToLower(strings.TrimSpace(q.Get("tag"))),
+	}
+	if filters.Direction != string(domain.DirectionLong) && filters.Direction != string(domain.DirectionShort) {
+		filters.Direction = ""
+	}
+	switch filters.Status {
+	case "open", "closed", "wins", "losses":
+	default:
+		filters.Status = ""
+	}
+	if filters.Tag != "" {
+		filters.Tag = normalizeTag(filters.Tag)
+	}
+	return filters
+}
+
+func applyIndexFilters(trades []*domain.Trade, filters indexFilters) []*domain.Trade {
+	if !filters.Active() {
+		return trades
+	}
+
+	filtered := make([]*domain.Trade, 0, len(trades))
+	needle := strings.ToLower(filters.Instrument)
+	for _, tr := range trades {
+		if needle != "" {
+			instrument := strings.ToLower(tr.Instrument)
+			market := strings.ToLower(tr.Market)
+			setup := strings.ToLower(tr.Setup)
+			if !strings.Contains(instrument, needle) && !strings.Contains(market, needle) && !strings.Contains(setup, needle) {
+				continue
+			}
+		}
+		if filters.Direction != "" && string(tr.Direction) != filters.Direction {
+			continue
+		}
+		switch filters.Status {
+		case "open":
+			if tr.HasExited() {
+				continue
+			}
+		case "closed":
+			if !tr.HasExited() {
+				continue
+			}
+		case "wins":
+			if !tr.HasExited() || tr.NetResult() <= 0 {
+				continue
+			}
+		case "losses":
+			if !tr.HasExited() || tr.NetResult() >= 0 {
+				continue
+			}
+		}
+		if filters.Tag != "" {
+			match := false
+			for _, tag := range tr.Review.Tags {
+				if normalizeTag(tag) == filters.Tag {
+					match = true
+					break
+				}
+			}
+			if !match {
+				continue
+			}
+		}
+		filtered = append(filtered, tr)
+	}
+	return filtered
+}
+
+func summarizeTrades(trades []*domain.Trade, now time.Time) dashboardMetrics {
+	metrics := dashboardMetrics{}
+	metrics.Total = len(trades)
+	if len(trades) == 0 {
+		return metrics
+	}
+
+	var winCount int
+	var rTotal float64
+	var rSamples int
+	var holdTotal float64
+	var holdSamples int
+	var returnTotal float64
+	var returnSamples int
+
+	for _, tr := range trades {
+		net := tr.NetResult()
+		metrics.TotalNet += net
+		if tr.HasExited() {
+			metrics.Closed++
+			if net > 0 {
+				winCount++
+			}
+			if tr.TotalRiskAmount() > 0 {
+				rTotal += tr.RMultiple()
+				rSamples++
+			}
+			if hold, ok := holdDays(tr, now); ok {
+				holdTotal += hold
+				holdSamples++
+			}
+			returnTotal += tr.ResultPercent()
+			returnSamples++
+		} else {
+			metrics.Open++
+			metrics.OpenRisk += tr.TotalRiskAmount()
+		}
+	}
+
+	if metrics.Closed > 0 {
+		metrics.WinRate = (float64(winCount) / float64(metrics.Closed)) * 100
+	}
+	if rSamples > 0 {
+		metrics.AvgR = rTotal / float64(rSamples)
+	}
+	if holdSamples > 0 {
+		metrics.AvgHoldDays = holdTotal / float64(holdSamples)
+	}
+	if returnSamples > 0 {
+		metrics.AvgReturnPct = returnTotal / float64(returnSamples)
+	}
+	return metrics
+}
+
+func collectTags(trades []*domain.Trade) []string {
+	seen := make(map[string]struct{})
+	for _, tr := range trades {
+		for _, tag := range tr.Review.Tags {
+			normalised := normalizeTag(tag)
+			if normalised == "" {
+				continue
+			}
+			seen[normalised] = struct{}{}
+		}
+	}
+	if len(seen) == 0 {
+		return nil
+	}
+	values := make([]string, 0, len(seen))
+	for tag := range seen {
+		values = append(values, tag)
+	}
+	sort.Strings(values)
+	return values
+}
+
+func tradeStatus(tr *domain.Trade) string {
+	if tr.HasExited() {
+		return "已平倉"
+	}
+	return "未平倉"
+}
+
+func holdDays(tr *domain.Trade, now time.Time) (float64, bool) {
+	if tr.Entry.Date.IsZero() {
+		return 0, false
+	}
+	end := now
+	if tr.HasExited() {
+		if tr.Exit == nil || tr.Exit.Date.IsZero() {
+			return 0, false
+		}
+		end = tr.Exit.Date
+	}
+	if end.Before(tr.Entry.Date) {
+		return 0, false
+	}
+	duration := end.Sub(tr.Entry.Date).Hours() / 24
+	return duration, true
+}
+
+func normalizeTag(tag string) string {
+	trimmed := strings.TrimSpace(strings.ToLower(tag))
+	if trimmed == "" {
+		return ""
+	}
+	if !utf8.ValidString(trimmed) {
+		return ""
+	}
+	return trimmed
+}
+
 func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 	var errs []string
 	get := func(name string) string { return strings.TrimSpace(r.FormValue(name)) }
@@ -340,33 +585,33 @@ func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 
 	entryDateStr := get("entry_date")
 	if entryDateStr == "" {
-		errs = append(errs, "entry date is required")
+		errs = append(errs, "必須填寫進場日期")
 	} else {
 		if dt, err := time.Parse("2006-01-02", entryDateStr); err == nil {
 			tr.Entry.Date = dt
 		} else {
-			errs = append(errs, "invalid entry date")
+			errs = append(errs, "進場日期格式錯誤")
 		}
 	}
 
 	var err error
 	if tr.Entry.Price, err = parseRequiredFloat(get("entry_price")); err != nil {
-		errs = append(errs, "invalid entry price")
+		errs = append(errs, "進場價格格式錯誤")
 	}
 	if tr.Entry.Quantity, err = parseRequiredFloat(get("entry_quantity")); err != nil {
-		errs = append(errs, "invalid quantity")
+		errs = append(errs, "數量格式錯誤")
 	}
 	if tr.Entry.Fees, err = parseOptionalFloat(get("entry_fees"), 0); err != nil {
-		errs = append(errs, "invalid entry fees")
+		errs = append(errs, "進場手續費格式錯誤")
 	}
 	if tr.Entry.StopLoss, err = parseOptionalPtrFloat(get("entry_stop_loss")); err != nil {
-		errs = append(errs, "invalid stop loss")
+		errs = append(errs, "停損價格格式錯誤")
 	}
 	if tr.Entry.Target, err = parseOptionalPtrFloat(get("entry_target")); err != nil {
-		errs = append(errs, "invalid target")
+		errs = append(errs, "目標價格式錯誤")
 	}
 	if tr.Entry.RiskPerShare, err = parseOptionalPtrFloat(get("entry_risk")); err != nil {
-		errs = append(errs, "invalid manual risk per share")
+		errs = append(errs, "自訂每股風險格式錯誤")
 	}
 	tr.Entry.Notes = get("entry_notes")
 
@@ -378,7 +623,7 @@ func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 		ContingencyPlan: get("contingency_plan"),
 	}
 	if tr.RiskManagement.MaxRiskAmount, err = parseOptionalFloat(get("max_risk"), 0); err != nil {
-		errs = append(errs, "invalid max risk")
+		errs = append(errs, "最大風險格式錯誤")
 	}
 
 	exitProvided := false
@@ -388,7 +633,7 @@ func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 			tr.Exit.Date = dt
 			exitProvided = true
 		} else {
-			errs = append(errs, "invalid exit date")
+			errs = append(errs, "出場日期格式錯誤")
 		}
 	}
 	if priceStr := get("exit_price"); priceStr != "" {
@@ -397,7 +642,7 @@ func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 			tr.Exit.Price = val
 			exitProvided = true
 		} else {
-			errs = append(errs, "invalid exit price")
+			errs = append(errs, "出場價格格式錯誤")
 		}
 	}
 	if qtyStr := get("exit_quantity"); qtyStr != "" {
@@ -406,7 +651,7 @@ func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 			tr.Exit.Quantity = val
 			exitProvided = true
 		} else {
-			errs = append(errs, "invalid exit quantity")
+			errs = append(errs, "出場數量格式錯誤")
 		}
 	}
 	if feeStr := get("exit_fees"); feeStr != "" {
@@ -415,7 +660,7 @@ func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 			tr.Exit.Fees = val
 			exitProvided = true
 		} else {
-			errs = append(errs, "invalid exit fees")
+			errs = append(errs, "出場手續費格式錯誤")
 		}
 	}
 	if reason := get("exit_reason"); reason != "" {
@@ -449,13 +694,13 @@ func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 	tr.AdditionalNotes = get("additional_notes")
 
 	if tr.ExecutionScore, err = parseOptionalPtrFloat(get("execution_score")); err != nil {
-		errs = append(errs, "invalid execution score")
+		errs = append(errs, "執行評分格式錯誤")
 	}
 	if tr.ConfidenceBefore, err = parseOptionalPtrFloat(get("confidence_before")); err != nil {
-		errs = append(errs, "invalid confidence before")
+		errs = append(errs, "進場前信心格式錯誤")
 	}
 	if tr.ConfidenceAfter, err = parseOptionalPtrFloat(get("confidence_after")); err != nil {
-		errs = append(errs, "invalid confidence after")
+		errs = append(errs, "出場後信心格式錯誤")
 	}
 
 	return tr, errs
