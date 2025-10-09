@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	domain "best_trade_logs/internal/domain/trade"
@@ -130,6 +131,7 @@ func (s *Server) handleNewTrade(w http.ResponseWriter, r *http.Request) {
 		"Title":  "新增交易",
 		"Trade":  tr,
 		"Action": "/trades",
+		"Form":   newTradeFormData(tr, true),
 	}
 	s.render(w, "trade_form.gohtml", data)
 }
@@ -218,6 +220,7 @@ func (s *Server) handleEditTrade(w http.ResponseWriter, r *http.Request, id stri
 		"Title":  "編輯交易",
 		"Trade":  tr,
 		"Action": fmt.Sprintf("/trades/%s/update", tr.ID),
+		"Form":   newTradeFormData(tr, false),
 	}
 	s.render(w, "trade_form.gohtml", data)
 }
@@ -272,12 +275,22 @@ func (s *Server) handleAddFollowUp(w http.ResponseWriter, r *http.Request, id st
 		http.Error(w, "表單格式錯誤", http.StatusBadRequest)
 		return
 	}
-	days, err := strconv.Atoi(strings.TrimSpace(r.FormValue("days_after")))
+	daysStr := normalizeIntegerInput(r.FormValue("days_after"))
+	if daysStr == "" {
+		http.Error(w, "天數格式錯誤", http.StatusBadRequest)
+		return
+	}
+	days, err := strconv.Atoi(daysStr)
 	if err != nil {
 		http.Error(w, "天數格式錯誤", http.StatusBadRequest)
 		return
 	}
-	price, err := strconv.ParseFloat(strings.TrimSpace(r.FormValue("price")), 64)
+	priceStr := normalizeNumericInput(r.FormValue("price"))
+	if priceStr == "" {
+		http.Error(w, "價格格式錯誤", http.StatusBadRequest)
+		return
+	}
+	price, err := strconv.ParseFloat(priceStr, 64)
 	if err != nil {
 		http.Error(w, "價格格式錯誤", http.StatusBadRequest)
 		return
@@ -637,7 +650,7 @@ func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 		}
 	}
 	if priceStr := get("exit_price"); priceStr != "" {
-		if val, err := strconv.ParseFloat(priceStr, 64); err == nil {
+		if val, err := parseFloatValue(priceStr); err == nil {
 			ensureExit(tr)
 			tr.Exit.Price = val
 			exitProvided = true
@@ -646,7 +659,7 @@ func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 		}
 	}
 	if qtyStr := get("exit_quantity"); qtyStr != "" {
-		if val, err := strconv.ParseFloat(qtyStr, 64); err == nil {
+		if val, err := parseFloatValue(qtyStr); err == nil {
 			ensureExit(tr)
 			tr.Exit.Quantity = val
 			exitProvided = true
@@ -655,7 +668,7 @@ func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 		}
 	}
 	if feeStr := get("exit_fees"); feeStr != "" {
-		if val, err := strconv.ParseFloat(feeStr, 64); err == nil {
+		if val, err := parseFloatValue(feeStr); err == nil {
 			ensureExit(tr)
 			tr.Exit.Fees = val
 			exitProvided = true
@@ -687,7 +700,20 @@ func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 	}
 	if tags := get("tags"); tags != "" {
 		parts := strings.Split(tags, ",")
-		tr.Review.Tags = parts
+		seen := make(map[string]struct{})
+		var cleaned []string
+		for _, tag := range parts {
+			normalized := normalizeTag(tag)
+			if normalized == "" {
+				continue
+			}
+			if _, ok := seen[normalized]; ok {
+				continue
+			}
+			seen[normalized] = struct{}{}
+			cleaned = append(cleaned, normalized)
+		}
+		tr.Review.Tags = cleaned
 	}
 
 	tr.MarketContext = get("market_context")
@@ -707,22 +733,27 @@ func buildTradeFromForm(r *http.Request) (*domain.Trade, []string) {
 }
 
 func parseRequiredFloat(val string) (float64, error) {
-	return strconv.ParseFloat(val, 64)
+	normalized := normalizeNumericInput(val)
+	if normalized == "" {
+		return 0, fmt.Errorf("empty")
+	}
+	return strconv.ParseFloat(normalized, 64)
 }
 
 func parseOptionalFloat(val string, def float64) (float64, error) {
-	if strings.TrimSpace(val) == "" {
+	normalized := normalizeNumericInput(val)
+	if normalized == "" {
 		return def, nil
 	}
-	return strconv.ParseFloat(val, 64)
+	return strconv.ParseFloat(normalized, 64)
 }
 
 func parseOptionalPtrFloat(val string) (*float64, error) {
-	val = strings.TrimSpace(val)
-	if val == "" {
+	normalized := normalizeNumericInput(val)
+	if normalized == "" {
 		return nil, nil
 	}
-	f, err := strconv.ParseFloat(val, 64)
+	f, err := strconv.ParseFloat(normalized, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -733,4 +764,172 @@ func ensureExit(tr *domain.Trade) {
 	if tr.Exit == nil {
 		tr.Exit = &domain.ExitDetail{}
 	}
+}
+
+type tradeFormData struct {
+	Instrument       string
+	Market           string
+	Direction        string
+	Setup            string
+	EntryDate        string
+	EntryPrice       string
+	EntryQuantity    string
+	EntryFees        string
+	EntryStopLoss    string
+	EntryTarget      string
+	EntryRisk        string
+	EntryNotes       string
+	Thesis           string
+	Plan             string
+	Checklist        string
+	MaxRisk          string
+	PositionSizing   string
+	ContingencyPlan  string
+	ExitDate         string
+	ExitPrice        string
+	ExitQuantity     string
+	ExitFees         string
+	ExitReason       string
+	ExitNotes        string
+	Outcome          string
+	Psychology       string
+	Improvements     string
+	Tags             string
+	MarketContext    string
+	AdditionalNotes  string
+	ExecutionScore   string
+	ConfidenceBefore string
+	ConfidenceAfter  string
+}
+
+func newTradeFormData(tr *domain.Trade, isNew bool) tradeFormData {
+	data := tradeFormData{
+		Instrument:      tr.Instrument,
+		Market:          tr.Market,
+		Setup:           tr.Setup,
+		Direction:       string(tr.Direction),
+		EntryNotes:      tr.Entry.Notes,
+		Thesis:          tr.RiskManagement.Thesis,
+		Plan:            tr.RiskManagement.Plan,
+		Checklist:       tr.RiskManagement.Checklist,
+		PositionSizing:  tr.RiskManagement.PositionSizing,
+		ContingencyPlan: tr.RiskManagement.ContingencyPlan,
+		ExitReason:      "",
+		ExitNotes:       "",
+		Outcome:         tr.Review.OutcomeSummary,
+		Psychology:      tr.Review.Psychology,
+		Improvements:    tr.Review.Improvements,
+		MarketContext:   tr.MarketContext,
+		AdditionalNotes: tr.AdditionalNotes,
+	}
+
+	if data.Direction == "" {
+		data.Direction = string(domain.DirectionLong)
+	}
+
+	if !tr.Entry.Date.IsZero() {
+		data.EntryDate = tr.Entry.Date.Format("2006-01-02")
+	} else if isNew {
+		data.EntryDate = time.Now().Format("2006-01-02")
+	}
+	data.EntryPrice = formatRequiredFloat(tr.Entry.Price, 4, isNew)
+	data.EntryQuantity = formatRequiredFloat(tr.Entry.Quantity, 4, isNew)
+	data.EntryFees = formatOptionalFloat(tr.Entry.Fees, 2)
+	data.EntryStopLoss = formatOptionalPtrFloat(tr.Entry.StopLoss, 4)
+	data.EntryTarget = formatOptionalPtrFloat(tr.Entry.Target, 4)
+	data.EntryRisk = formatOptionalPtrFloat(tr.Entry.RiskPerShare, 4)
+
+	data.MaxRisk = formatOptionalFloat(tr.RiskManagement.MaxRiskAmount, 2)
+
+	if tr.Exit != nil {
+		if !tr.Exit.Date.IsZero() {
+			data.ExitDate = tr.Exit.Date.Format("2006-01-02")
+		}
+		data.ExitPrice = formatOptionalFloat(tr.Exit.Price, 4)
+		data.ExitQuantity = formatOptionalFloat(tr.Exit.Quantity, 4)
+		data.ExitFees = formatOptionalFloat(tr.Exit.Fees, 2)
+		data.ExitReason = tr.Exit.Reason
+		data.ExitNotes = tr.Exit.Notes
+	}
+
+	if len(tr.Review.Tags) > 0 {
+		formatted := make([]string, 0, len(tr.Review.Tags))
+		for _, tag := range tr.Review.Tags {
+			formatted = append(formatted, templates.FormatTag(tag))
+		}
+		data.Tags = strings.Join(formatted, ", ")
+	}
+
+	data.ExecutionScore = formatOptionalPtrFloat(tr.ExecutionScore, 1)
+	data.ConfidenceBefore = formatOptionalPtrFloat(tr.ConfidenceBefore, 1)
+	data.ConfidenceAfter = formatOptionalPtrFloat(tr.ConfidenceAfter, 1)
+
+	return data
+}
+
+func formatRequiredFloat(val float64, precision int, isNew bool) string {
+	if isNew && val == 0 {
+		return ""
+	}
+	return strconv.FormatFloat(val, 'f', precision, 64)
+}
+
+func formatOptionalFloat(val float64, precision int) string {
+	if val == 0 {
+		return ""
+	}
+	return strconv.FormatFloat(val, 'f', precision, 64)
+}
+
+func formatOptionalPtrFloat(val *float64, precision int) string {
+	if val == nil {
+		return ""
+	}
+	return strconv.FormatFloat(*val, 'f', precision, 64)
+}
+
+func parseFloatValue(val string) (float64, error) {
+	normalized := normalizeNumericInput(val)
+	if normalized == "" {
+		return 0, fmt.Errorf("empty")
+	}
+	return strconv.ParseFloat(normalized, 64)
+}
+
+func normalizeNumericInput(val string) string {
+	val = strings.TrimSpace(val)
+	if val == "" {
+		return ""
+	}
+	var b strings.Builder
+	for _, r := range val {
+		switch {
+		case r >= '０' && r <= '９':
+			b.WriteRune('0' + (r - '０'))
+		case r == '．' || r == '。':
+			b.WriteRune('.')
+		case r == '－' || r == '﹣' || r == '—' || r == '–':
+			b.WriteRune('-')
+		case r == '＋' || r == '﹢':
+			b.WriteRune('+')
+		case r == ',' || r == '，':
+			continue
+		case unicode.IsSpace(r):
+			continue
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func normalizeIntegerInput(val string) string {
+	normalized := normalizeNumericInput(val)
+	if normalized == "" {
+		return ""
+	}
+	if idx := strings.IndexRune(normalized, '.'); idx >= 0 {
+		normalized = normalized[:idx]
+	}
+	return normalized
 }

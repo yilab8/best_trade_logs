@@ -14,22 +14,22 @@
         <div class="form-grid">
             <div class="form-field">
                 <label for="instrument">商品</label>
-                <input id="instrument" type="text" name="instrument" value="{{.Trade.Instrument}}" required>
+                <input id="instrument" type="text" name="instrument" value="{{.Form.Instrument}}" required autofocus placeholder="例如：2330 或 AAPL">
             </div>
             <div class="form-field">
                 <label for="market">市場</label>
-                <input id="market" type="text" name="market" value="{{.Trade.Market}}">
+                <input id="market" type="text" name="market" value="{{.Form.Market}}" placeholder="例如：臺股、美股、期貨">
             </div>
             <div class="form-field">
                 <label for="direction">方向</label>
                 <select id="direction" name="direction">
-                    <option value="LONG" {{if eq .Trade.Direction "LONG"}}selected{{end}}>多頭</option>
-                    <option value="SHORT" {{if eq .Trade.Direction "SHORT"}}selected{{end}}>空頭</option>
+                    <option value="LONG" {{if eq .Form.Direction "LONG"}}selected{{end}}>多頭</option>
+                    <option value="SHORT" {{if eq .Form.Direction "SHORT"}}selected{{end}}>空頭</option>
                 </select>
             </div>
             <div class="form-field">
                 <label for="setup">策略</label>
-                <input id="setup" type="text" name="setup" value="{{.Trade.Setup}}">
+                <input id="setup" type="text" name="setup" value="{{.Form.Setup}}" placeholder="例如：突破、回測、趨勢跟隨">
             </div>
         </div>
     </section>
@@ -39,36 +39,36 @@
         <div class="form-grid">
             <div class="form-field">
                 <label for="entry_date">日期</label>
-                <input id="entry_date" type="date" name="entry_date" value="{{if .Trade.Entry.Date.IsZero}}{{else}}{{.Trade.Entry.Date.Format "2006-01-02"}}{{end}}" required>
+                <input id="entry_date" type="date" name="entry_date" value="{{.Form.EntryDate}}" required>
             </div>
             <div class="form-field">
                 <label for="entry_price">價格</label>
-                <input id="entry_price" type="number" step="0.0001" name="entry_price" value="{{printf "%.4f" .Trade.Entry.Price}}" required>
+                <input id="entry_price" type="number" step="0.0001" name="entry_price" value="{{.Form.EntryPrice}}" inputmode="decimal" required placeholder="輸入進場價格">
             </div>
             <div class="form-field">
                 <label for="entry_quantity">數量</label>
-                <input id="entry_quantity" type="number" step="0.0001" name="entry_quantity" value="{{printf "%.4f" .Trade.Entry.Quantity}}" required>
+                <input id="entry_quantity" type="number" step="0.0001" name="entry_quantity" value="{{.Form.EntryQuantity}}" inputmode="decimal" required placeholder="輸入部位數量">
             </div>
             <div class="form-field">
                 <label for="entry_fees">手續費</label>
-                <input id="entry_fees" type="number" step="0.01" name="entry_fees" value="{{printf "%.2f" .Trade.Entry.Fees}}">
+                <input id="entry_fees" type="number" step="0.01" name="entry_fees" value="{{.Form.EntryFees}}" inputmode="decimal" placeholder="可留空">
             </div>
             <div class="form-field">
                 <label for="entry_stop_loss">停損</label>
-                <input id="entry_stop_loss" type="number" step="0.0001" name="entry_stop_loss" value="{{if .Trade.Entry.StopLoss}}{{printf "%.4f" (ptrValue .Trade.Entry.StopLoss)}}{{end}}">
+                <input id="entry_stop_loss" type="number" step="0.0001" name="entry_stop_loss" value="{{.Form.EntryStopLoss}}" inputmode="decimal" placeholder="目標停損價">
             </div>
             <div class="form-field">
                 <label for="entry_target">目標價</label>
-                <input id="entry_target" type="number" step="0.0001" name="entry_target" value="{{if .Trade.Entry.Target}}{{printf "%.4f" (ptrValue .Trade.Entry.Target)}}{{end}}">
+                <input id="entry_target" type="number" step="0.0001" name="entry_target" value="{{.Form.EntryTarget}}" inputmode="decimal" placeholder="設定目標出場價">
             </div>
             <div class="form-field">
                 <label for="entry_risk">自訂每股風險</label>
-                <input id="entry_risk" type="number" step="0.0001" name="entry_risk" value="{{if .Trade.Entry.RiskPerShare}}{{printf "%.4f" (ptrValue .Trade.Entry.RiskPerShare)}}{{end}}">
+                <input id="entry_risk" type="number" step="0.0001" name="entry_risk" value="{{.Form.EntryRisk}}" inputmode="decimal" placeholder="若未填寫將自動以停損計算">
             </div>
         </div>
         <div class="form-field" style="margin-top:1rem;">
             <label for="entry_notes">進場備註</label>
-            <textarea id="entry_notes" name="entry_notes">{{.Trade.Entry.Notes}}</textarea>
+            <textarea id="entry_notes" name="entry_notes" placeholder="紀錄下單時的情境與決策點">{{.Form.EntryNotes}}</textarea>
         </div>
     </section>
 
@@ -76,28 +76,28 @@
         <h2 class="card-title">風險控管與計畫</h2>
         <div class="form-field">
             <label for="thesis">交易假設</label>
-            <textarea id="thesis" name="thesis">{{.Trade.RiskManagement.Thesis}}</textarea>
+            <textarea id="thesis" name="thesis" placeholder="預期市場走勢、題材或邏輯">{{.Form.Thesis}}</textarea>
         </div>
         <div class="form-field">
             <label for="plan">交易計畫</label>
-            <textarea id="plan" name="plan">{{.Trade.RiskManagement.Plan}}</textarea>
+            <textarea id="plan" name="plan" placeholder="進場與加減碼規則、風險控管方式">{{.Form.Plan}}</textarea>
         </div>
         <div class="form-field">
             <label for="checklist">檢查清單確認</label>
-            <textarea id="checklist" name="checklist">{{.Trade.RiskManagement.Checklist}}</textarea>
+            <textarea id="checklist" name="checklist" placeholder="確認入場前需檢核的條件">{{.Form.Checklist}}</textarea>
         </div>
         <div class="form-grid" style="margin-top:1rem;">
             <div class="form-field">
                 <label for="max_risk">最大可承擔風險</label>
-                <input id="max_risk" type="number" step="0.01" name="max_risk" value="{{printf "%.2f" .Trade.RiskManagement.MaxRiskAmount}}">
+                <input id="max_risk" type="number" step="0.01" name="max_risk" value="{{.Form.MaxRisk}}" inputmode="decimal" placeholder="以金額表示可接受的最大損失">
             </div>
             <div class="form-field">
                 <label for="position_sizing">部位規模計算</label>
-                <textarea id="position_sizing" name="position_sizing">{{.Trade.RiskManagement.PositionSizing}}</textarea>
+                <textarea id="position_sizing" name="position_sizing" placeholder="計算張數/口數的方式與依據">{{.Form.PositionSizing}}</textarea>
             </div>
             <div class="form-field">
                 <label for="contingency_plan">應變方案</label>
-                <textarea id="contingency_plan" name="contingency_plan">{{.Trade.RiskManagement.ContingencyPlan}}</textarea>
+                <textarea id="contingency_plan" name="contingency_plan" placeholder="若行情不如預期時的處理方式">{{.Form.ContingencyPlan}}</textarea>
             </div>
         </div>
     </section>
@@ -107,28 +107,28 @@
         <div class="form-grid">
             <div class="form-field">
                 <label for="exit_date">日期</label>
-                <input id="exit_date" type="date" name="exit_date" value="{{if .Trade.Exit}}{{.Trade.Exit.Date.Format "2006-01-02"}}{{end}}">
+                <input id="exit_date" type="date" name="exit_date" value="{{.Form.ExitDate}}">
             </div>
             <div class="form-field">
                 <label for="exit_price">價格</label>
-                <input id="exit_price" type="number" step="0.0001" name="exit_price" value="{{if .Trade.Exit}}{{printf "%.4f" .Trade.Exit.Price}}{{end}}">
+                <input id="exit_price" type="number" step="0.0001" name="exit_price" value="{{.Form.ExitPrice}}" inputmode="decimal" placeholder="輸入實際出場價格">
             </div>
             <div class="form-field">
                 <label for="exit_quantity">數量</label>
-                <input id="exit_quantity" type="number" step="0.0001" name="exit_quantity" value="{{if .Trade.Exit}}{{printf "%.4f" .Trade.Exit.Quantity}}{{end}}">
+                <input id="exit_quantity" type="number" step="0.0001" name="exit_quantity" value="{{.Form.ExitQuantity}}" inputmode="decimal" placeholder="若全數出場可留空">
             </div>
             <div class="form-field">
                 <label for="exit_fees">手續費</label>
-                <input id="exit_fees" type="number" step="0.01" name="exit_fees" value="{{if .Trade.Exit}}{{printf "%.2f" .Trade.Exit.Fees}}{{end}}">
+                <input id="exit_fees" type="number" step="0.01" name="exit_fees" value="{{.Form.ExitFees}}" inputmode="decimal">
             </div>
         </div>
         <div class="form-field" style="margin-top:1rem;">
             <label for="exit_reason">出場原因</label>
-            <textarea id="exit_reason" name="exit_reason">{{if .Trade.Exit}}{{.Trade.Exit.Reason}}{{end}}</textarea>
+            <textarea id="exit_reason" name="exit_reason" placeholder="紀錄出場時的評估與觸發條件">{{.Form.ExitReason}}</textarea>
         </div>
         <div class="form-field">
             <label for="exit_notes">出場備註</label>
-            <textarea id="exit_notes" name="exit_notes">{{if .Trade.Exit}}{{.Trade.Exit.Notes}}{{end}}</textarea>
+            <textarea id="exit_notes" name="exit_notes" placeholder="可補充出場後的市場變化或情緒">{{.Form.ExitNotes}}</textarea>
         </div>
     </section>
 
@@ -136,19 +136,19 @@
         <h2 class="card-title">事後回顧</h2>
         <div class="form-field">
             <label for="outcome">結果摘要</label>
-            <textarea id="outcome" name="outcome">{{.Trade.Review.OutcomeSummary}}</textarea>
+            <textarea id="outcome" name="outcome" placeholder="總結此筆交易的結果與學到的經驗">{{.Form.Outcome}}</textarea>
         </div>
         <div class="form-field">
             <label for="psychology">心理狀態</label>
-            <textarea id="psychology" name="psychology">{{.Trade.Review.Psychology}}</textarea>
+            <textarea id="psychology" name="psychology" placeholder="記錄交易過程中的情緒與心態">{{.Form.Psychology}}</textarea>
         </div>
         <div class="form-field">
             <label for="improvements">待改進處</label>
-            <textarea id="improvements" name="improvements">{{.Trade.Review.Improvements}}</textarea>
+            <textarea id="improvements" name="improvements" placeholder="列出下一次可以調整的行動">{{.Form.Improvements}}</textarea>
         </div>
         <div class="form-field">
             <label for="tags">標籤（以逗號分隔）</label>
-            <input id="tags" type="text" name="tags" value="{{join .Trade.Review.Tags ", "}}">
+            <input id="tags" type="text" name="tags" value="{{.Form.Tags}}" placeholder="例如：突破, 心理紀律">
         </div>
     </section>
 
@@ -156,24 +156,24 @@
         <h2 class="card-title">其他背景</h2>
         <div class="form-field">
             <label for="market_context">市場背景</label>
-            <textarea id="market_context" name="market_context">{{.Trade.MarketContext}}</textarea>
+            <textarea id="market_context" name="market_context" placeholder="重大消息、盤勢或經濟數據">{{.Form.MarketContext}}</textarea>
         </div>
         <div class="form-field">
             <label for="additional_notes">其他備註</label>
-            <textarea id="additional_notes" name="additional_notes">{{.Trade.AdditionalNotes}}</textarea>
+            <textarea id="additional_notes" name="additional_notes" placeholder="任何想保留的補充說明">{{.Form.AdditionalNotes}}</textarea>
         </div>
         <div class="form-grid" style="margin-top:1rem;">
             <div class="form-field">
                 <label for="execution_score">執行評分（0-10）</label>
-                <input id="execution_score" type="number" step="0.1" name="execution_score" value="{{if .Trade.ExecutionScore}}{{printf "%.1f" (ptrValue .Trade.ExecutionScore)}}{{end}}">
+                <input id="execution_score" type="number" step="0.1" name="execution_score" value="{{.Form.ExecutionScore}}" inputmode="decimal" placeholder="主觀評分">
             </div>
             <div class="form-field">
                 <label for="confidence_before">進場前信心</label>
-                <input id="confidence_before" type="number" step="0.1" name="confidence_before" value="{{if .Trade.ConfidenceBefore}}{{printf "%.1f" (ptrValue .Trade.ConfidenceBefore)}}{{end}}">
+                <input id="confidence_before" type="number" step="0.1" name="confidence_before" value="{{.Form.ConfidenceBefore}}" inputmode="decimal" placeholder="0-10">
             </div>
             <div class="form-field">
                 <label for="confidence_after">出場後信心</label>
-                <input id="confidence_after" type="number" step="0.1" name="confidence_after" value="{{if .Trade.ConfidenceAfter}}{{printf "%.1f" (ptrValue .Trade.ConfidenceAfter)}}{{end}}">
+                <input id="confidence_after" type="number" step="0.1" name="confidence_after" value="{{.Form.ConfidenceAfter}}" inputmode="decimal" placeholder="0-10">
             </div>
         </div>
     </section>
