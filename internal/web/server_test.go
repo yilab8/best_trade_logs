@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -115,6 +116,52 @@ func TestHandleUpdateTradeKeepsFollowUps(t *testing.T) {
 	}
 	if len(updated.FollowUps) != 1 {
 		t.Fatalf("expected follow ups to persist")
+	}
+}
+
+func TestBuildTradeFromFormNormalizesInputs(t *testing.T) {
+	form := url.Values{}
+	form.Set("instrument", "台積電")
+	form.Set("direction", "long")
+	form.Set("entry_date", "2023-07-15")
+	form.Set("entry_price", "１,２３４．５６")
+	form.Set("entry_quantity", "１,０００")
+	form.Set("entry_fees", " １２ ")
+	form.Set("exit_price", "１１１．５")
+	form.Set("exit_quantity", "５００")
+	form.Set("tags", "Breakout,  回測 , breakout , ")
+
+	req := httptest.NewRequest(http.MethodPost, "/trades", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := req.ParseForm(); err != nil {
+		t.Fatalf("parse form: %v", err)
+	}
+
+	tr, errs := buildTradeFromForm(req)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+
+	if math.Abs(tr.Entry.Price-1234.56) > 1e-9 {
+		t.Fatalf("expected price 1234.56, got %v", tr.Entry.Price)
+	}
+	if math.Abs(tr.Entry.Quantity-1000) > 1e-9 {
+		t.Fatalf("expected quantity 1000, got %v", tr.Entry.Quantity)
+	}
+	if math.Abs(tr.Entry.Fees-12) > 1e-9 {
+		t.Fatalf("expected fees 12, got %v", tr.Entry.Fees)
+	}
+	if tr.Exit == nil {
+		t.Fatalf("expected exit to be created")
+	}
+	if math.Abs(tr.Exit.Price-111.5) > 1e-9 {
+		t.Fatalf("expected exit price 111.5, got %v", tr.Exit.Price)
+	}
+	if len(tr.Review.Tags) != 2 {
+		t.Fatalf("expected 2 tags, got %d", len(tr.Review.Tags))
+	}
+	if tr.Review.Tags[0] != "breakout" || tr.Review.Tags[1] != "回測" {
+		t.Fatalf("unexpected tags: %#v", tr.Review.Tags)
 	}
 }
 

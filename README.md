@@ -10,6 +10,7 @@
 - **後續追蹤**：記錄出場後數日（如 +7、+30）的價格觀察，評估錯過的延續走勢。
 - **未實現績效追蹤**：對於尚未出場的部位，可填寫參考收盤價來估算當前績效。
 - **瀏覽器介面**：提供響應式 HTML 介面，用於瀏覽清單、編輯紀錄與查看交易細節。
+- **繁體中文操作體驗**：完整在地化的介面與提示字詞，降低跨語言使用的理解成本。
 
 ## 系統需求
 
@@ -26,13 +27,13 @@
    cd best_trade_logs
    ```
 
-3. 執行伺服器並載入示範資料：
+3. 直接啟動伺服器（首次啟動時資料庫為空，請自行建立第一筆交易）：
 
    ```bash
-   go run ./cmd/server --seed
+   go run ./cmd/server
    ```
 
-   `--seed` 只會在資料庫為空時建立兩筆示範交易，方便直接瀏覽 UI。
+   系統不會自動載入示範資料，確保任何環境都僅包含實際輸入的交易記錄。
 
 4. 開啟瀏覽器並前往 <http://localhost:8080> 查看交易日誌。
 
@@ -50,22 +51,13 @@ go run ./cmd/server
 
 開啟瀏覽器並造訪 http://localhost:8080 進入交易日誌。
 
-若希望自動帶入示範資料，可加入 `--seed` 參數或設定環境變數 `SEED_SAMPLE_DATA=true`：
-
-```bash
-go run ./cmd/server --seed
-# 或
-SEED_SAMPLE_DATA=true go run ./cmd/server
-```
-
 ### 常用指令（Makefile）
 
 專案提供簡易的 Makefile，協助快速執行常見工作：
 
 ```bash
-make run        # go run ./cmd/server
-make run-seed   # go run ./cmd/server --seed
-make test       # go test ./...
+make run   # go run ./cmd/server
+make test  # go test ./...
 ```
 
 ### 使用 MongoDB
@@ -93,7 +85,6 @@ go run -tags mongodb ./cmd/server --mongo-uri mongodb://localhost:27017 --mongo-
 ### 設定參數
 
 - `--port` / `PORT`：HTTP 埠號（預設 `8080`）。
-- `--seed` / `SEED_SAMPLE_DATA`：啟動時若資料庫為空是否載入示範交易（預設 `false`）。
 - `--mongo-uri` / `MONGO_URI`：MongoDB 連線字串（使用 `mongodb` build tag 時必填）。
 - `--mongo-db` / `MONGO_DB`：MongoDB 資料庫名稱（必填）。
 - `--mongo-collection` / `MONGO_COLLECTION`：MongoDB 集合名稱（預設 `trades`）。

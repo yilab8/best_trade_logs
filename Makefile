@@ -1,10 +1,7 @@
-.PHONY: run run-seed test
+.PHONY: run test
 
 run:
 	go run ./cmd/server
 
-run-seed:
-	go run ./cmd/server --seed
-
 test:
-	go test ./...
+go test ./...

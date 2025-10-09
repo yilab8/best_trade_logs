@@ -7,6 +7,8 @@ import (
 	"io"
 	"io/fs"
 	"strings"
+	"unicode"
+
 	domain "best_trade_logs/internal/domain/trade"
 )
 
@@ -39,6 +41,7 @@ func New() (*Engine, error) {
 			}
 			return 0
 		},
+		"formatTag": formatTag,
 	}
 
 	base, err := template.New("layout.gohtml").Funcs(funcMap).ParseFS(templateFS, "layout.gohtml")
@@ -72,6 +75,36 @@ func New() (*Engine, error) {
 	}
 
 	return &Engine{templates: tmpls}, nil
+}
+
+// FormatTag exposes the human-readable representation of a tag.
+func FormatTag(tag string) string {
+	return formatTag(tag)
+}
+
+func formatTag(tag string) string {
+	cleaned := strings.ReplaceAll(tag, "-", " ")
+	cleaned = strings.ReplaceAll(cleaned, "_", " ")
+	cleaned = strings.TrimSpace(cleaned)
+	if cleaned == "" {
+		return ""
+	}
+
+	runes := []rune(cleaned)
+	capitalize := true
+	for i, r := range runes {
+		if r == ' ' {
+			capitalize = true
+			continue
+		}
+		if capitalize {
+			runes[i] = unicode.ToUpper(r)
+			capitalize = false
+			continue
+		}
+		runes[i] = unicode.ToLower(r)
+	}
+	return string(runes)
 }
 
 // ExecuteTemplate renders the named template into the writer.
