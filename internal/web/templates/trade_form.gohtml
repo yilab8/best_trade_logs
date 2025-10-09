@@ -18,18 +18,42 @@
             </div>
             <div class="form-field">
                 <label for="market">市場</label>
-                <input id="market" type="text" name="market" value="{{.Form.Market}}" placeholder="例如：臺股、美股、期貨">
+                <input id="market" type="text" name="market" value="{{.Form.Market}}" list="market-options" required placeholder="選擇或輸入市場類型">
+                <datalist id="market-options">
+                    <option value="臺股"></option>
+                    <option value="美股"></option>
+                    <option value="港股"></option>
+                    <option value="A 股"></option>
+                    <option value="期貨"></option>
+                    <option value="外匯"></option>
+                    <option value="加密貨幣"></option>
+                    <option value="ETF"></option>
+                    <option value="選擇權"></option>
+                    <option value="其他"></option>
+                </datalist>
             </div>
             <div class="form-field">
                 <label for="direction">方向</label>
-                <select id="direction" name="direction">
+                <select id="direction" name="direction" required>
                     <option value="LONG" {{if eq .Form.Direction "LONG"}}selected{{end}}>多頭</option>
                     <option value="SHORT" {{if eq .Form.Direction "SHORT"}}selected{{end}}>空頭</option>
                 </select>
             </div>
             <div class="form-field">
                 <label for="setup">策略</label>
-                <input id="setup" type="text" name="setup" value="{{.Form.Setup}}" placeholder="例如：突破、回測、趨勢跟隨">
+                <input id="setup" type="text" name="setup" value="{{.Form.Setup}}" list="setup-options" required placeholder="選擇或輸入策略類型">
+                <datalist id="setup-options">
+                    <option value="突破"></option>
+                    <option value="回測"></option>
+                    <option value="趨勢跟隨"></option>
+                    <option value="區間操作"></option>
+                    <option value="反轉"></option>
+                    <option value="動能"></option>
+                    <option value="波段"></option>
+                    <option value="日內"></option>
+                    <option value="事件交易"></option>
+                    <option value="其他"></option>
+                </datalist>
             </div>
         </div>
     </section>

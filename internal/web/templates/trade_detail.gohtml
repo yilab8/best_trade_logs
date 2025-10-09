@@ -23,7 +23,7 @@
 <div class="stat-grid">
     <div class="stat-card">
         <span class="stat-label">淨損益</span>
-        <span class="stat-value {{if gt .Metrics.Net 0}}text-positive{{else if lt .Metrics.Net 0}}text-negative{{end}}">{{printf "%.2f" .Metrics.Net}}</span>
+        <span class="stat-value {{if gt .Metrics.Net 0.0}}text-positive{{else if lt .Metrics.Net 0.0}}text-negative{{end}}">{{printf "%.2f" .Metrics.Net}}</span>
         <span class="stat-meta">相對資金曝險 {{printf "%.2f" .Metrics.NetPercent}}%</span>
     </div>
     <div class="stat-card">
@@ -147,7 +147,7 @@
                 {{if .Trade.RiskManagement.Thesis}}<div><dt>交易假設</dt><dd>{{.Trade.RiskManagement.Thesis}}</dd></div>{{end}}
                 {{if .Trade.RiskManagement.Plan}}<div><dt>交易計畫</dt><dd>{{.Trade.RiskManagement.Plan}}</dd></div>{{end}}
                 {{if .Trade.RiskManagement.Checklist}}<div><dt>檢查清單</dt><dd>{{.Trade.RiskManagement.Checklist}}</dd></div>{{end}}
-                {{if gt .Trade.RiskManagement.MaxRiskAmount 0}}<div><dt>最大可承擔風險</dt><dd>{{printf "%.2f" .Trade.RiskManagement.MaxRiskAmount}}</dd></div>{{end}}
+                {{if gt .Trade.RiskManagement.MaxRiskAmount 0.0}}<div><dt>最大可承擔風險</dt><dd>{{printf "%.2f" .Trade.RiskManagement.MaxRiskAmount}}</dd></div>{{end}}
                 {{if .Trade.RiskManagement.PositionSizing}}<div><dt>部位規模計算</dt><dd>{{.Trade.RiskManagement.PositionSizing}}</dd></div>{{end}}
                 {{if .Trade.RiskManagement.ContingencyPlan}}<div><dt>應變方案</dt><dd>{{.Trade.RiskManagement.ContingencyPlan}}</dd></div>{{end}}
             </dl>
