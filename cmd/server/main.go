@@ -28,9 +28,6 @@ func main() {
 	defer cleanup()
 
 	svc := tradesvc.NewService(repo)
-	if err := maybeSeed(ctx, svc, cfg.SeedSampleData); err != nil {
-		log.Printf("sample data seeding failed: %v", err)
-	}
 	server, err := web.NewServer(svc)
 	if err != nil {
 		log.Fatalf("failed to create server: %v", err)
@@ -45,17 +42,17 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Best Trade Logs listening on %s", addr)
+		log.Printf("最佳交易日誌服務啟動於 %s", addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %v", err)
 		}
 	}()
 
 	<-ctx.Done()
-	log.Println("shutting down...")
+	log.Println("服務關閉中...")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("server shutdown error: %v", err)
+		log.Printf("關閉伺服器時發生錯誤: %v", err)
 	}
 }
